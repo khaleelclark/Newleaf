@@ -10,3 +10,7 @@
 # Preserve the Kotlin runtime ABI shared with the mapped release test APK.
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }
+# Compose instrumentation implements shared runtime interfaces, including
+# default-method bridge classes that the application alone does not use.
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
