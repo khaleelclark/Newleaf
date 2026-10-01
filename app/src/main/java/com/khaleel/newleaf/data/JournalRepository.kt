@@ -76,18 +76,19 @@ class JournalRepository(context: Context) : AutoCloseable {
         }
     }
     suspend fun upsert(entry: Entry) = upsertAll(listOf(entry))
-    suspend fun upsertAll(entries: List<Entry>) = mutate { previous ->
-        require(entries.map { it.id }.distinct().size == entries.size) { "Duplicate upsert IDs" }
-        entries.forEach(JournalValidation::entry)
-        val old = previous.entries.associateBy { it.id }
-        val revised = entries.map { entry -> old[entry.id]?.let { existing ->
-            if (JournalCodec.same(existing, entry)) existing else entry.copy(version = maxOf(entry.version, existing.version + 1),
-                createdAt = existing.createdAt, updatedAt = Instant.now().toString())
-        } ?: entry }
-        val incoming = revised.associateBy { it.id }
-        val incomingDaily = entries.filter { !it.isLibrary && it.kind in setOf(EntryKind.STEPS, EntryKind.NOTE) }.map { "${it.kind}:${it.localDate}" }.toSet()
-        val retained = previous.entries.filter { it.id !in incoming && (it.isLibrary || "${it.kind}:${it.localDate}" !in incomingDaily) }
-        previous.copy(entries = retained + revised)
+    suspend fun upsertAll(entries: List<Entry>) { applyEdits(entries, emptySet()) }
+
+    /**
+     * Upsert and unlink/delete in one validated Room transaction. Returns every changed or
+     * removed original snapshot. Undo with upsertAll when no IDs were added; otherwise use
+     * applyEdits(undo, addedIds) to remove newly created records in the same Undo transaction.
+     */
+    suspend fun applyEdits(upserts: List<Entry>, deleteIds: Set<String>): List<Entry> {
+        var undo: List<Entry> = emptyList()
+        mutate { previous ->
+            JournalEdits.apply(previous, upserts, deleteIds).also { undo = it.undo }.journal
+        }
+        return undo
     }
     suspend fun delete(ids: Set<String>) { deleteWithDependents(ids, false) }
 

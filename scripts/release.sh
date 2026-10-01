@@ -42,7 +42,7 @@ newleaf_aligned="$(mktemp --suffix=.apk)"
 trap 'rm -f "$newleaf_aligned"' EXIT
 "$newleaf_tools_dir/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$newleaf_aligned"
 "$newleaf_tools_dir/apksigner" sign --ks "$newleaf_key_file" --ks-key-alias newleaf \
-    --ks-pass "file:$newleaf_pass_file" --key-pass "file:$newleaf_pass_file" --out "$newleaf_apk" "$newleaf_aligned"
+    --ks-pass "file:$newleaf_pass_file" --out "$newleaf_apk" "$newleaf_aligned"
 chmod 644 "$newleaf_apk"
 "$newleaf_tools_dir/apksigner" verify --verbose --print-certs "$newleaf_apk" > releases/SIGNATURE.txt
 sha256sum "$newleaf_apk" > releases/CHECKSUMS.txt

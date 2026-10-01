@@ -54,5 +54,5 @@ internal object JournalCodec {
     fun entry(json: String): Entry = gson.fromJson(json, Entry::class.java)
     fun settings(json: String): AppSettings = gson.fromJson(json, AppSettings::class.java)
     fun toJson(value: Any): String = gson.toJson(value)
-    fun same(a: Entry, b: Entry): Boolean = gson.toJsonTree(a) == gson.toJsonTree(b)
+    fun same(a: Entry, b: Entry): Boolean = a === b || gson.toJsonTree(a) == gson.toJsonTree(b)
 }

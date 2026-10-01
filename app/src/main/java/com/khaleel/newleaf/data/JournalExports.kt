@@ -66,9 +66,9 @@ object JournalExports {
                         }
                     } else null
                     val digest = bytes?.let(::sha256)
-                    val extension = path.substringBefore('?').substringAfterLast('.', "bin").lowercase().takeIf { it in setOf("jpg", "jpeg", "png", "webp", "heic", "gif") } ?: "bin"
+                    val extension = path.substringBefore('?').substringAfterLast('.', "bin").lowercase().takeIf { it in setOf("jpg", "jpeg", "png", "webp", "heic", "heif", "gif") } ?: "bin"
                     val name = "attachments/${digest ?: UUID.nameUUIDFromBytes(path.toByteArray())}.$extension"
-                    val mime = when(extension) { "jpg", "jpeg" -> "image/jpeg"; "png" -> "image/png"; "webp" -> "image/webp"; "heic" -> "image/heic"; "gif" -> "image/gif"; else -> "application/octet-stream" }
+                    val mime = when(extension) { "jpg", "jpeg" -> "image/jpeg"; "png" -> "image/png"; "webp" -> "image/webp"; "heic" -> "image/heic"; "heif" -> "image/heif"; "gif" -> "image/gif"; else -> "application/octet-stream" }
                     pathNames[path] = name
                     val existing = attachmentMap[name]
                     attachmentMap[name] = AttachmentManifest(digest ?: name.substringAfter('/'), name, mime, digest, bytes?.size?.toLong(),

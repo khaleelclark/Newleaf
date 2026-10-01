@@ -161,4 +161,68 @@ class DomainTest {
         assertNull(PhotoReferences.collect(Journal(drafts = mapOf("unreadable" to "{broken draft"))))
     }
 
+    @Test fun atomicMealEditDeletesOldChildAndUndoRemovesNewChild() {
+        val oldFood = food("Old child").copy(id = "old-child", mealId = "meal")
+        val meal = Entry(id = "meal", kind = EntryKind.MEAL, name = "Before", componentIds = listOf(oldFood.id))
+        val untouched = food("Unchanged")
+        val before = Journal(listOf(meal, oldFood, untouched))
+        val added = food("New child").copy(id = "new-child", mealId = meal.id)
+        val edit = JournalEdits.apply(before, listOf(meal.copy(name = "After", componentIds = listOf(added.id)), added), setOf(oldFood.id))
+        assertEquals(setOf(meal.id, oldFood.id), edit.undo.map { it.id }.toSet())
+        assertFalse(edit.journal.entries.any { it.id == oldFood.id })
+        assertSame(untouched, edit.journal.entries.single { it.id == untouched.id })
+        assertEquals(meal.version + 1, edit.journal.entries.single { it.id == meal.id }.version)
+        val undone = JournalEdits.apply(edit.journal, edit.undo, setOf(added.id)).journal
+        assertEquals(before.entries.map { it.id }.toSet(), undone.entries.map { it.id }.toSet())
+        assertEquals(meal.componentIds, undone.entries.single { it.id == meal.id }.componentIds)
+        assertEquals(meal.name, undone.entries.single { it.id == meal.id }.name)
+        assertEquals(meal.id, undone.entries.single { it.id == oldFood.id }.mealId)
+    }
+    @Test fun atomicDeletionIncludesUnlinkedParentsAndDependentsInUndo() {
+        val removed = food("Removed").copy(id = "removed")
+        val parent = Entry(kind = EntryKind.MEAL, name = "Parent", componentIds = listOf(removed.id))
+        val feeling = Entry(kind = EntryKind.CHECKIN, name = "Feeling", mealId = parent.id)
+        val before = Journal(listOf(removed, parent, feeling))
+        val edit = JournalEdits.apply(before, emptyList(), setOf(removed.id))
+        assertEquals(setOf(removed.id, parent.id), edit.undo.map { it.id }.toSet())
+        assertTrue(edit.journal.entries.single { it.id == parent.id }.componentIds.isEmpty())
+        val restored = JournalEdits.apply(edit.journal, edit.undo, emptySet()).journal
+        assertEquals(parent.componentIds, restored.entries.single { it.id == parent.id }.componentIds)
+        val mealDelete = JournalEdits.apply(restored, emptyList(), setOf(parent.id))
+        assertEquals(setOf(parent.id, feeling.id), mealDelete.undo.map { it.id }.toSet())
+        assertNull(mealDelete.journal.entries.single { it.id == feeling.id }.mealId)
+    }
+    @Test fun atomicDailyReplacementCanRestoreOriginalTotal() {
+        val steps = Entry(kind = EntryKind.STEPS, name = "Steps", steps = 50)
+        val replacement = steps.copy(id = "replacement-steps", steps = 100)
+        val note = Entry(kind = EntryKind.NOTE, name = "Daily note", localDate = steps.localDate)
+        val before = Journal(listOf(steps, note))
+        val edit = JournalEdits.apply(before, listOf(replacement), emptySet())
+        assertEquals(listOf(steps), edit.undo)
+        assertEquals(100L, edit.journal.entries.single { it.kind == EntryKind.STEPS }.steps)
+        val restored = JournalEdits.apply(edit.journal, edit.undo, setOf(replacement.id)).journal
+        assertEquals(steps, restored.entries.single { it.kind == EntryKind.STEPS })
+        assertSame(note, restored.entries.single { it.id == note.id })
+    }
+    @Test fun atomicEditPreservesEmbeddedLinksWhenLibrarySourceIsDeleted() {
+        val ingredient = food("Ingredient")
+        val recipe = Recipes.create("Recipe", listOf(ingredient), 1.0)
+        val logged = Recipes.log(recipe, 1.0, "serving")
+        val template = Entry(kind = EntryKind.TEMPLATE, name = "Snapshot template", componentIds = listOf(ingredient.id), ingredientSnapshots = listOf(ingredient))
+        val before = Journal(listOf(ingredient, recipe, logged, template))
+        val edit = JournalEdits.apply(before, emptyList(), setOf(ingredient.id, recipe.id))
+        assertEquals(template.componentIds, edit.journal.entries.single { it.id == template.id }.componentIds)
+        assertEquals(logged.recipeId, edit.journal.entries.single { it.id == logged.id }.recipeId)
+        assertEquals(logged.recipeSnapshot, edit.journal.entries.single { it.id == logged.id }.recipeSnapshot)
+        assertEquals(setOf(ingredient.id, recipe.id), edit.undo.map { it.id }.toSet())
+    }
+    @Test fun invalidAtomicEditsRejectAmbiguityAndFinalReferenceErrors() {
+        val original = food("Original")
+        val before = Journal(listOf(original))
+        assertThrows(IllegalArgumentException::class.java) { JournalEdits.apply(before, listOf(original), setOf(original.id)) }
+        assertThrows(IllegalArgumentException::class.java) { JournalEdits.apply(before, listOf(original, original), emptySet()) }
+        assertThrows(IllegalArgumentException::class.java) { JournalEdits.apply(before, listOf(food().copy(mealId = "missing")), setOf(original.id)) }
+        assertEquals(listOf(original), before.entries)
+    }
+
 }

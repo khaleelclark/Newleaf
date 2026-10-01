@@ -123,4 +123,38 @@ class PersistenceTest {
         }
     }
 
+    @Test fun atomicMealEditAndUndoPersistAcrossRepositoryHandles() = runBlocking {
+        withJournal { repo ->
+            val meal = Entry(kind = EntryKind.MEAL, name = "Atomic meal")
+            val removed = Entry(kind = EntryKind.FOOD, name = "Old food", mealId = meal.id)
+            val originalMeal = meal.copy(componentIds = listOf(removed.id))
+            repo.upsertAll(listOf(originalMeal, removed))
+            val added = Entry(kind = EntryKind.FOOD, name = "New food", mealId = meal.id)
+            val undo = repo.applyEdits(listOf(originalMeal.copy(componentIds = listOf(added.id)), added), setOf(removed.id))
+            assertEquals(setOf(meal.id, removed.id), undo.map { it.id }.toSet())
+            assertFalse(repo.state.value.entries.any { it.id == removed.id })
+            val reopened = JournalRepository(context)
+            try {
+                reopened.awaitLoaded()
+                assertEquals(listOf(added.id), reopened.state.value.entries.single { it.id == meal.id }.componentIds)
+                reopened.applyEdits(undo, setOf(added.id))
+                assertEquals(listOf(removed.id), reopened.state.value.entries.single { it.id == meal.id }.componentIds)
+                assertEquals(meal.id, reopened.state.value.entries.single { it.id == removed.id }.mealId)
+                assertFalse(reopened.state.value.entries.any { it.id == added.id })
+            } finally { reopened.close() }
+        }
+    }
+    @Test fun invalidAtomicEditRollsBackDeletionAndSurvivesReopen() = runBlocking {
+        withJournal { repo ->
+            val original = Entry(kind = EntryKind.FOOD, name = "Atomic rollback original")
+            repo.upsert(original)
+            val before = repo.state.value
+            val invalid = Entry(kind = EntryKind.FOOD, name = "Invalid atomic child", mealId = "missing-${UUID.randomUUID()}")
+            try { repo.applyEdits(listOf(invalid), setOf(original.id)); fail("Invalid atomic edit accepted") } catch (_: IllegalArgumentException) { }
+            assertEquals(before, repo.state.value)
+            val reopened = JournalRepository(context)
+            try { reopened.awaitLoaded(); assertEquals(before.entries, reopened.state.value.entries) } finally { reopened.close() }
+        }
+    }
+
 }

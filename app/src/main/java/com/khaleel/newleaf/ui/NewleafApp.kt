@@ -49,14 +49,15 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
         scope.launch {try{
             val real=when(current.saveAs){"recipe"->current.copy(kind=EntryKind.RECIPE);"template"->current.copy(kind=EntryKind.TEMPLATE);else->current}
             val entries=real.toEntries(journal.settings)
-            val old=journal.entries.filter { it.id in entries.map{e->e.id} || (real.kind in listOf(EntryKind.STEPS,EntryKind.NOTE) && it.kind==real.kind && it.localDate==real.date) }
-            val removed=if(real.kind==EntryKind.MEAL && !real.isNew) journal.entries.filter{it.mealId==real.id && it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK) && it.id !in entries.map{e->e.id}} else emptyList()
-            repository.upsertAll(entries)
-            if(removed.isNotEmpty())repository.delete(removed.map{it.id}.toSet())
+            val before=repository.state.value
+            val entryIds=entries.map{it.id}.toSet()
+            val addedIds=entryIds-before.entries.map{it.id}.toSet()
+            val removedIds=if(real.kind==EntryKind.MEAL && !real.isNew)before.entries.filter{it.mealId==real.id && it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK) && it.id !in entryIds}.map{it.id}.toSet()else emptySet()
+            val undo=repository.applyEdits(entries,removedIds)
             repository.clearDraft(savingKey);draft=null;screen=null
             scope.launch {
                 val result=snackbar.showSnackbar(if(!real.isNew)"Changes saved" else "${kindName(real.kind)} saved",actionLabel="Undo")
-                if(result==SnackbarResult.ActionPerformed)try{repository.delete(entries.filter{new->old.none{it.id==new.id}}.map{it.id}.toSet());repository.upsertAll(old+removed)}catch(e:Exception){notify(e.message ?: "Undo could not be applied")}
+                if(result==SnackbarResult.ActionPerformed)try{repository.applyEdits(undo,addedIds)}catch(e:Exception){notify(e.message ?: "Undo could not be applied")}
             }
         }catch(e:Exception){editorError=e.message ?: "Save failed. Your draft is still here."}finally{busy=false} }
     }

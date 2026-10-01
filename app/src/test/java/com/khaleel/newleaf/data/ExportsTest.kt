@@ -213,4 +213,15 @@ class ExportsTest {
         assertTrue(OpenFoodFactsExports.hasRecords(OpenFoodFactsExports.subset(listOf(nested))))
     }
 
+    @Test fun heifAttachmentPreservesOriginalFormatBytesAndIntegrity() {
+        val bytes = byteArrayOf(0, 0, 0, 24, 102, 116, 121, 112, 104, 101, 105, 102)
+        val entry = at(Entry(kind = EntryKind.FOOD, name = "HEIF fixture", photoPaths = listOf("/private/original.HEIF")))
+        val restored = JournalExports.previewRestore(JournalExports.backup(Journal(listOf(entry)), PhotoReader { bytes }))
+        val attachment = restored.attachments.single()
+        assertTrue(attachment.manifest.fileName.endsWith(".heif"))
+        assertEquals("image/heif", attachment.manifest.mimeType)
+        assertEquals(JournalExports.sha256(bytes), attachment.manifest.sha256)
+        assertArrayEquals(bytes, attachment.bytes)
+    }
+
 }
