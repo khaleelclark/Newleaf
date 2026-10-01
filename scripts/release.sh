@@ -34,7 +34,7 @@ PY
 fi
 [[ -f "$newleaf_pass_file" ]] || { printf '%s\n' 'Signing password file is missing.' >&2; exit 1; }
 
-./gradlew --no-daemon :app:assembleRelease :app:testDebugUnitTest :app:lintDebug --console=plain
+./gradlew --no-daemon -Pnewleaf.testBuildType=release :app:assembleRelease :app:assembleReleaseAndroidTest :app:testReleaseUnitTest :app:lintRelease --console=plain
 mkdir -p releases
 cp app/build/outputs/mapping/release/mapping.txt releases/MAPPING.txt
 newleaf_version="$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts)"
