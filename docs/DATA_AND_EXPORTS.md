@@ -118,7 +118,7 @@ The report carries descriptive data, not AI-generated conclusions or automatic d
 
 When selected, a ZIP contains JSON/report/CSV outputs plus attachment files and a manifest linking them to records. Export original local photos, not just thumbnails, with their association and optional metadata. No attachment is uploaded to a nutrition provider merely because it is exported.
 
-Full backup is a versioned JSON archive with every active journal/library/settings record, all referenced recipe snapshots, and attachments. Exclude provider credentials, authentication tokens, and transient cache. Backups containing restricted provider data must follow the resolved provider contract; a backup cannot silently omit required nutrition and still be labeled complete.
+Full backup is a versioned JSON archive with every active journal/library/settings record, all referenced recipe snapshots, and attachments. Exclude the personal USDA key, gateway authentication token, and transient drafts/cache. Credentials use separate local protected storage; restoring a backup preserves this installation’s current credentials and cannot import keys or tokens from a file. USDA data are public domain and Open Food Facts source nutrition includes attribution and a separately reusable licensed subset; neither requires omitting journal nutrition. A backup cannot silently omit required data and still be labeled complete.
 
 ## 8. Restore and integrity
 
