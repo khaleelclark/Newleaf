@@ -33,7 +33,8 @@ class LoggingUiTest {
         ui.waitUntil(10_000) {
             ui.onAllNodesWithText(fixtureName).fetchSemanticsNodes().isNotEmpty()
         }
-        ui.onNodeWithText(fixtureName).performScrollTo().performClick()
-        ui.onNodeWithText("Calories unknown", substring = true).assertExists()
+        ui.onNode(hasText(fixtureName) and hasText("Calories unknown")).performScrollTo().performClick()
+        ui.onNodeWithText("Portion & nutrition").performScrollTo().assertIsDisplayed()
+        ui.onNodeWithText("Calories · kcal: Unknown").assertExists()
     }
 }
