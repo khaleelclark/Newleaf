@@ -12,6 +12,7 @@ if not version_match:
 VERSION = version_match.group(1)
 required = [f'releases/Newleaf-{VERSION}.apk', 'releases/INSTALL.md', 'releases/CHANGELOG.md',
             'releases/VALIDATION.md', 'releases/SIGNATURE.txt', 'BUILD.md', 'THIRD_PARTY_NOTICES.md',
+            'releases/MAPPING.txt',
             'gateway/README.md', 'gateway/.env.example', 'gateway/server.py',
             'releases/samples/example-journal.json', 'releases/samples/example-report.md',
             'releases/samples/example-spreadsheets.zip', 'releases/samples/example-backup.zip']
@@ -29,6 +30,7 @@ for directory in ['docs', 'gradle/wrapper', 'app/src', 'app/schemas', 'gateway',
         files.update(p for p in path.rglob('*') if p.is_file())
 files.update((ROOT / 'releases').glob('*.md'))
 files.add(ROOT / 'releases/SIGNATURE.txt')
+files.add(ROOT / 'releases/MAPPING.txt')
 
 def safe(path):
     relative = path.relative_to(ROOT)

@@ -6,11 +6,11 @@ Newleaf is a personal Android journal for meals, drinks, activity, body weight, 
 
 ## Project status
 
-Implementation started October 1, 2026 following the owner's development instruction. A specialist team is building the native Android experience, journal/export layer, and nutrition integrations. The specification below remains the product contract; release validation will distinguish implemented behavior from unresolved provider access and actual-device checks.
+The Android implementation and signed release candidate are present. A specialist team built the Android experience, journal/export layer, and three nutrition adapters. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; a compiled adapter does not mean a hosted gateway or keyed account is provisioned.
 
 Project location: `/home/phoenix/khaleel/Newleaf`.
 
-Primary device: Samsung Galaxy S25 Ultra. Eventual delivery: an installable signed Android APK, source, and installation/update instructions.
+Primary device: Samsung Galaxy S25 Ultra. Handoff files are in `releases/`; see [installation](releases/INSTALL.md) and [build instructions](BUILD.md).
 
 ## Read the specification
 
@@ -45,14 +45,17 @@ The product document sets scope; the other documents define the behavior needed 
 - No default calorie target, weight target, reminders, fasting features, or automatic AI analysis.
 - Local meal photos are included; automatic photo-based nutrition recognition is a later option.
 
-## Dependencies to resolve before implementation
+## Remaining external setup
 
-These do not prevent specification work. They must be resolved before claiming the full app is operational:
+These must be resolved before claiming all three live sources and physical-device acceptance:
 
 1. Third-provider account access, pricing, and permission to retain nutrition in journal records, backups, and AI exports.
-2. Applicable Open Food Facts attribution and reuse requirements for the exact integration and export design.
+2. USDA API access and a configured gateway. Open Food Facts uses its public service with attribution and an independently licensed nutrition subset in exports.
 3. Hosting choice and spending limit for a small nutrition gateway that protects provider credentials.
-4. Actual Android version on the owner's phone, package identifier, signing-key custody, and distribution choice.
-5. Visual review before implementation; proposed palette and layouts are not a final approved design.
+4. Actual S25 Ultra installation and usability. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
 
 Development is authorized. Paid plans, external account registration, and public gateway deployment require the owner's concrete choices. No schedule or budget estimate is committed. See [build instructions](BUILD.md) and the eventual `releases/` handoff for installation and validation.
+
+## Version control
+
+Commit focused checkpoints and push regularly to the owner's `khaleelclark` GitHub account. Use the verified GitHub identity and SSH access. Never commit provider/device credentials, local SDK configuration, signing keys/passwords, generated build caches, or real journal data. Release binaries are delivered separately from source history. Remote creation/push status is recorded in release validation.
