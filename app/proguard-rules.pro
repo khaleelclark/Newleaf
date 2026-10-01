@@ -14,3 +14,12 @@
 # default-method bridge classes that the application alone does not use.
 -keep class androidx.compose.runtime.** { *; }
 -keep class androidx.compose.ui.** { *; }
+-keep class androidx.collection.** { *; }
+# ActivityScenario/Espresso share these Android runtime libraries with the
+# target APK; keep their public and reflection-visible ABI across shrinking.
+-keep class androidx.activity.** { *; }
+-keep class androidx.core.** { *; }
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.savedstate.** { *; }
+-keep class androidx.concurrent.** { *; }
+-keep class com.google.common.** { *; }
