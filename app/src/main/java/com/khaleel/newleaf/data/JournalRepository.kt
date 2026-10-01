@@ -47,8 +47,9 @@ class JournalRepository(context: Context) : AutoCloseable {
     private suspend fun readJournal(): Journal {
         val meta = dao.meta().associate { it.key to it.value }
         val settings = meta["settings"]?.let(JournalCodec::settings) ?: AppSettings()
-        val journal = Journal(dao.entries().map { JournalCodec.entry(it.payload) }, settings.copy(gatewayToken = credentials.read()),
-            dao.drafts().associate { it.key to it.value }, meta["extensions"]?.let { com.google.gson.JsonParser.parseString(it).asJsonObject } ?: com.google.gson.JsonObject())
+        val journal = Journal(dao.entries().map { JournalCodec.entry(it.payload) }, CredentialSettings.withoutCredentials(settings).copy(
+            gatewayToken = credentials.read(), usdaApiKey = credentials.readUsdaApiKey()),
+            dao.drafts().associate { it.key to it.value }, (meta["extensions"]?.let { com.google.gson.JsonParser.parseString(it).asJsonObject } ?: com.google.gson.JsonObject()).also(CredentialSettings::stripFields))
         JournalValidation.journal(journal)
         return journal
     }
@@ -60,8 +61,8 @@ class JournalRepository(context: Context) : AutoCloseable {
         // Delete daily-key collisions before INSERT to preserve a stable replacement ID.
         val rows = next.entries.filter { old[it.id]?.let { oldEntry -> JournalCodec.same(oldEntry, it) } != true }.map(EntryRow::of)
         dao.put(rows)
-        dao.putMeta(MetaRow("settings", JournalCodec.toJson(next.settings.copy(gatewayToken = ""))))
-        dao.putMeta(MetaRow("extensions", JournalCodec.toJson(next.extensions)))
+        dao.putMeta(MetaRow("settings", JournalCodec.toJson(CredentialSettings.withoutCredentials(next.settings))))
+        dao.putMeta(MetaRow("extensions", JournalCodec.toJson(next.extensions.deepCopy().also(CredentialSettings::stripFields))))
         if (previous.drafts != next.drafts) { dao.clearDrafts(); next.drafts.forEach { (key, value) -> dao.putDraft(DraftRow(key, value)) } }
         dao.putMeta(MetaRow("revision", UUID.randomUUID().toString()))
     }
@@ -121,11 +122,16 @@ class JournalRepository(context: Context) : AutoCloseable {
             mutex.withLock {
                 check(!closed)
                 val oldToken = credentials.read()
-                credentials.save(settings.gatewayToken)
+                val oldUsdaKey = credentials.readUsdaApiKey()
                 try {
+                    credentials.save(settings.gatewayToken, settings.usdaApiKey)
                     val next = database.withTransaction { val old = readJournal(); old.copy(settings = settings).also { persist(old, it) } }
                     mutableState.value = next
-                } catch (failure: Throwable) { credentials.save(oldToken); throw failure }
+                } catch (failure: Throwable) {
+                    try { credentials.save(oldToken, oldUsdaKey) }
+                    catch (rollback: Throwable) { failure.addSuppressed(rollback) }
+                    throw failure
+                }
             }
         }
     }
@@ -142,9 +148,8 @@ class JournalRepository(context: Context) : AutoCloseable {
     }
     private fun merged(current: Journal, incoming: Journal, replace: Boolean, resolutions: Map<String, ConflictResolution>): Journal {
         JournalValidation.journal(incoming)
-        val settings = incoming.settings.copy(gatewayToken = current.settings.gatewayToken,
-            gatewayUrl = if (current.settings.gatewayToken.isNotEmpty()) current.settings.gatewayUrl else incoming.settings.gatewayUrl)
-        if (replace) return incoming.copy(settings = settings)
+        val settings = CredentialSettings.restore(incoming.settings, current.settings)
+        if (replace) return incoming.copy(settings = settings, extensions = incoming.extensions.deepCopy().also(CredentialSettings::stripFields))
         val conflicts = conflicts(current, incoming)
         val unresolved = conflicts.filter { it.id !in resolutions }
         if (unresolved.isNotEmpty()) throw RestoreConflictException(unresolved)
@@ -155,8 +160,9 @@ class JournalRepository(context: Context) : AutoCloseable {
                 entries[entry.id] = entry
             }
         }
-        val extensions = current.extensions.deepCopy().apply { incoming.extensions.entrySet().forEach { add(it.key, it.value.deepCopy()) } }
-        return Journal(entries.values.toList(), settings, current.drafts + incoming.drafts, extensions)
+        val extensions = current.extensions.deepCopy().apply { incoming.extensions.entrySet().forEach { add(it.key, it.value.deepCopy()) } }.also(CredentialSettings::stripFields)
+        return Journal(entries.values.toList(), settings.copy(onboardingComplete = current.settings.onboardingComplete),
+            current.drafts + incoming.drafts, extensions)
     }
     private fun photoReader(): PhotoReader = PhotoReader { path ->
         if (path.startsWith("content://")) appContext.contentResolver.openInputStream(Uri.parse(path))?.use { it.readBytes() } ?: error("Photo is unavailable")

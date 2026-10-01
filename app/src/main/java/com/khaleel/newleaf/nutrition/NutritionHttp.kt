@@ -16,17 +16,18 @@ import java.time.Instant
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicReference
 
-/** Values are deliberately not included in toString; Authorization never enters diagnostics. */
-class NutritionRequest(val method: String, val url: String, val headers: Map<String, String>, val body: String? = null) {
+/** Values are deliberately not included in toString; Authorization/API keys never enter diagnostics. */
+class NutritionRequest(val method: String, val url: String, val headers: Map<String, String>, val body: String? = null, val readTimeoutMillis: Int = 12000) {
     override fun toString() = "NutritionRequest($method)"
 }
 data class NutritionResponse(val status: Int, val body: String, val retryAfterSeconds: Long? = null)
 fun interface NutritionTransport { suspend fun execute(request: NutritionRequest): NutritionResponse }
 
-enum class NutritionError { UNCONFIGURED, AUTHENTICATION, ACCESS_ENTITLEMENT, RATE_LIMITED, BUDGET_EXCEEDED, INVALID_REQUEST, NOT_FOUND, UNAVAILABLE, MALFORMED_RESPONSE }
+enum class NutritionError { FREE_ONLY, UNCONFIGURED, AUTHENTICATION, ACCESS_ENTITLEMENT, RATE_LIMITED, BUDGET_EXCEEDED, INVALID_REQUEST, NOT_FOUND, UNAVAILABLE, MALFORMED_RESPONSE }
 class NutritionException(val category: NutritionError, val retryAfterSeconds: Long? = null) : Exception(when(category) {
-    NutritionError.UNCONFIGURED -> "Online nutrition is not configured. Add your gateway address and device token in settings."
-    NutritionError.AUTHENTICATION -> "Gateway authentication failed. Check your device token."
+    NutritionError.FREE_ONLY -> "Newleaf uses free sources only. Nutritionix is disabled."
+    NutritionError.UNCONFIGURED -> "USDA is not configured. Add your free personal USDA key in settings, or an optional gateway."
+    NutritionError.AUTHENTICATION -> "Nutrition authentication failed. Check your USDA key or gateway token."
     NutritionError.ACCESS_ENTITLEMENT -> "This nutrition source is not enabled for this account."
     NutritionError.RATE_LIMITED -> "Nutrition source limit reached. Try later."
     NutritionError.BUDGET_EXCEEDED -> "Your configured nutrition request budget has been reached."
@@ -53,7 +54,7 @@ class UrlConnectionTransport : NutritionTransport {
                 try {
                     currentCoroutineContext().ensureActive()
                     connection.connectTimeout = 8000
-                    connection.readTimeout = 12000
+                    connection.readTimeout = request.readTimeoutMillis.coerceIn(1000, 60000)
                     connection.instanceFollowRedirects = false
                     connection.requestMethod = request.method
                     request.headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }

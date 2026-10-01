@@ -2,6 +2,8 @@ package com.khaleel.newleaf.ui
 
 import com.google.gson.Gson
 import com.khaleel.newleaf.data.*
+import com.khaleel.newleaf.nutrition.FoodCandidate
+import com.khaleel.newleaf.nutrition.NutrientBasis
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
@@ -93,6 +95,32 @@ class EditorStateTest {
         val result=changePortion(initial,"90","g").toEntries(settings).single()
         assertEquals(300.0,result.nutrients["energy_kcal"]!!,0.0)
         assertEquals(90.0,result.massGrams!!,0.0)
+    }
+
+    @Test fun confirmedDescribeItemRetainsPortionAndProvenanceWhenMealIsSaved() {
+        val text="2 eggs, 1 cup milk"
+        val candidate=FoodCandidate(name="Milk",quantity=1.0,unit="cup",kind=EntryKind.DRINK,
+            nutrients=mapOf("energy_kcal" to 60.0),basis=NutrientBasis.PER_100_G,
+            portions=listOf(PortionDefinition("cup",1.0,massGrams=240.0)),
+            source="USDA FoodData Central",sourceId="usda:123",originalText=text,estimated=true,
+            sourceReference=SourceReference(provider="USDA FoodData Central",itemId="usda:123",license="CC0-1.0"),
+            metadata=mapOf("description_mode" to "usda_assisted","description_item_input" to "1 cup milk",
+                "quantity_hint_status" to "parsed_unreviewed","unit_recognized" to "true","review_required" to "true"))
+        val confirmed=candidate.toEntry().copy(matchStatus="confirmed")
+        val entries=EditorDraft.new(EntryKind.MEAL,LocalDate.parse("2026-10-01"),settings)
+            .copy(name="Breakfast",originalText=text,items=listOf(confirmed)).toEntries(settings)
+        val child=entries.single{it.kind==EntryKind.DRINK}
+        assertEquals(1.0,child.quantity!!,0.0)
+        assertEquals("cup",child.unit)
+        assertEquals(144.0,child.nutrients["energy_kcal"]!!,0.000001)
+        assertEquals("estimated",child.portionEvidence)
+        assertEquals(text,child.originalText)
+        assertEquals("parsed_unreviewed",child.metadata["quantity_hint_status"])
+        assertEquals("usda:123",child.sourceReference!!.itemId)
+        assertEquals(entries.first().id,child.mealId)
+        assertEquals("confirmed",child.matchStatus)
+        assertEquals(text,entries.first().originalText)
+        JournalValidation.journal(Journal(entries))
     }
 
 }

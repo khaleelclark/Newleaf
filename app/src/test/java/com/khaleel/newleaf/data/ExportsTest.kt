@@ -154,6 +154,71 @@ class ExportsTest {
         assertFalse(JournalExports.json(Journal(settings = settings)).contains("TEST-DEVICE-SECRET"))
     }
 
+    @Test fun bothDeviceCredentialsAreExcludedFromEveryExportAndPersistableSettings() {
+        val settings = AppSettings(gatewayToken = "FIXTURE-GATEWAY-SECRET", usdaApiKey = "FIXTURE-USDA-SECRET",
+            extensions = JsonParser.parseString("""{"gateway_token":"FIXTURE-GATEWAY-SECRET","nested":[{"usda_api_key":"FIXTURE-USDA-SECRET"}],"secretRecipe":"keep-recipe","tokenCount":4,"publicApiKeyLabel":"keep-label"}""").asJsonObject)
+        val journal = journal().copy(settings = settings,
+            extensions = JsonParser.parseString("""{"usdaApiKey":"FIXTURE-USDA-SECRET","future_document":"retain"}""").asJsonObject)
+        val texts = listOf(JournalExports.json(journal), JournalExports.markdown(journal),
+            JournalCodec.toJson(CredentialSettings.withoutCredentials(settings)), settings.toString()) +
+            listOf(JournalExports.csvZip(journal), JournalExports.backup(journal)).flatMap { archive -> unzip(archive).values.map { String(it, Charsets.UTF_8) } }
+        texts.forEach { text ->
+            assertFalse(text.contains("FIXTURE-GATEWAY-SECRET")); assertFalse(text.contains("FIXTURE-USDA-SECRET"))
+        }
+        val exportedSettings = JsonParser.parseString(JournalExports.json(journal)).asJsonObject["settings"].asJsonObject
+        assertFalse(exportedSettings.has("gatewayToken")); assertFalse(exportedSettings.has("usdaApiKey"))
+        val extensions = exportedSettings["extensions"].asJsonObject
+        assertFalse(extensions.has("gateway_token"))
+        assertFalse(extensions["nested"].asJsonArray.single().asJsonObject.has("usda_api_key"))
+        assertEquals("keep-recipe", extensions["secretRecipe"].asString)
+        assertEquals(4, extensions["tokenCount"].asInt)
+        assertEquals("keep-label", extensions["publicApiKeyLabel"].asString)
+        // Sanitizing must not clear the live credential or mutate caller-owned extensions.
+        assertEquals("FIXTURE-USDA-SECRET", settings.usdaApiKey)
+        assertTrue(settings.extensions.has("gateway_token"))
+    }
+
+    @Test fun importedJsonAndZipCredentialFieldsAreDiscardedBeforeDecoding() {
+        val files = unzip(JournalExports.backup(journal()))
+        val root = JsonParser.parseString(String(files.getValue("journal.json"), Charsets.UTF_8)).asJsonObject
+        root["settings"].asJsonObject.apply {
+            addProperty("gatewayToken", "FOREIGN-GATEWAY-SECRET")
+            addProperty("usdaApiKey", "FOREIGN-USDA-SECRET")
+            add("extensions", JsonParser.parseString("""{"usda_api_key":"FOREIGN-USDA-SECRET","nested":[{"gateway-token":"FOREIGN-GATEWAY-SECRET"}],"future_setting":"retain"}"""))
+        }
+        root.addProperty("usdaApiKey", "FOREIGN-USDA-SECRET")
+        root["extensions"].asJsonObject.addProperty("gateway_token", "FOREIGN-GATEWAY-SECRET")
+        val json = root.toString().toByteArray(Charsets.UTF_8)
+        files["journal.json"] = json
+        files["integrity.json"] = com.google.gson.JsonObject().apply {
+            files.filterKeys { it != "integrity.json" }.forEach { (name, bytes) -> addProperty(name, JournalExports.sha256(bytes)) }
+        }.toString().toByteArray(Charsets.UTF_8)
+        listOf(json, zip(files)).forEach { input ->
+            val preview = JournalExports.previewRestore(input)
+            assertEquals("", preview.journal.settings.gatewayToken)
+            assertEquals("", preview.journal.settings.usdaApiKey)
+            val sanitized = JournalCodec.toJson(preview.journal)
+            assertFalse(sanitized.contains("FOREIGN-GATEWAY-SECRET")); assertFalse(sanitized.contains("FOREIGN-USDA-SECRET"))
+            assertEquals("retain", preview.journal.settings.extensions["future_setting"].asString)
+        }
+    }
+
+    @Test fun legacySettingsDefaultUsdaKeyToBlankAndRestoreKeepsOnlyLocalCredentials() {
+        val legacy = JournalCodec.settings("""{"theme":"dark","gatewayToken":"legacy-device-token"}""")
+        assertEquals("", legacy.usdaApiKey)
+        assertEquals("legacy-device-token", legacy.gatewayToken)
+        val incoming = AppSettings(theme = "dark", gatewayUrl = "https://foreign.invalid", gatewayToken = "foreign-token", usdaApiKey = "foreign-key")
+        val local = AppSettings(gatewayUrl = "https://local.invalid", gatewayToken = "local-token", usdaApiKey = "local-key")
+        val restored = CredentialSettings.restore(incoming, local)
+        assertEquals("dark", restored.theme)
+        assertEquals("local-token", restored.gatewayToken); assertEquals("local-key", restored.usdaApiKey)
+        assertEquals("https://local.invalid", restored.gatewayUrl)
+        val blank = CredentialSettings.restore(incoming, AppSettings())
+        assertEquals("", blank.gatewayToken); assertEquals("", blank.usdaApiKey)
+        assertEquals(incoming.gatewayUrl, blank.gatewayUrl)
+        assertEquals("local-key", CredentialSettings.restore(incoming, local.copy(gatewayToken = "")).usdaApiKey)
+    }
+
     @Test fun partialCompositionCoverageIsExportedAndRoundTripsSeparatelyFromEstimation() {
         val base = at(Entry(kind = EntryKind.DRINK, name = "Coffee", nutrients = mapOf("energy_kcal" to 0.0)))
         val drink = Nutrition.composeDrink(base, listOf(Entry(kind = EntryKind.FOOD, name = "Milk", nutrients = mapOf("energy_kcal" to 50.0)), Entry(kind = EntryKind.FOOD, name = "Unknown addition")))

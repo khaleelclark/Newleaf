@@ -109,8 +109,10 @@ object ProviderMappers {
             val p = element.asJsonObject
             val amount = positive(p.number("amount")) ?: return@mapNotNull null
             val grams = positive(p.number("gramWeight")) ?: return@mapNotNull null
-            val label = p.obj("measureUnit")?.text("name")?.takeUnless { it == "undetermined" }
+            val rawLabel = p.obj("measureUnit")?.text("name")?.takeUnless { it.equals("undetermined", true) }
                 ?: p.text("modifier") ?: p.text("portionDescription") ?: return@mapNotNull null
+            val prefix = Regex("^([0-9]+(?:\\.[0-9]+)?)\\s+(.+)$").matchEntire(rawLabel)
+            val label = if (prefix?.groupValues?.get(1)?.toDoubleOrNull() == amount) prefix!!.groupValues[2] else rawLabel
             PortionDefinition(label, amount, grams)
         }.toMutableList()
         val servingMass = size?.let { Units.massGrams(it, servingUnit) }
@@ -129,6 +131,44 @@ object ProviderMappers {
             metadata = v.originals + mapOf("data_type" to type, "source_url" to "https://fdc.nal.usda.gov/food-details/$id/nutrients"), needsDetails = summary)
     }
 
+    /** Local/gateway hints are provisional. Missing matches remain editable unknown candidates. */
+    fun usdaDescription(item: JsonObject, originalText: String): FoodCandidate {
+        val query = item.text("query") ?: malformed()
+        val fragment = item.text("input_text") ?: malformed()
+        val unit = item.text("unit_hint") ?: malformed()
+        val status = item.text("match_status") ?: malformed()
+        fun flag(key: String): Boolean = item.get(key)?.takeIf {
+            it.isJsonPrimitive && it.asJsonPrimitive.isBoolean
+        }?.asBoolean ?: malformed()
+        if (!flag("match_estimated") || !flag("quantity_estimated")) malformed()
+        val recognized = flag("unit_recognized")
+        val needsDetails = flag("needs_details")
+        val quantityField = item.get("quantity_hint") ?: malformed()
+        if (!quantityField.isJsonNull && (!quantityField.isJsonPrimitive || !quantityField.asJsonPrimitive.isNumber)) malformed()
+        val quantity = if (quantityField.isJsonNull) null else (positive(item.number("quantity_hint")) ?: malformed())
+        if (quantity != null && quantity > 1000000.0) malformed()
+        val foodField = item.get("food") ?: malformed()
+        val base = if (foodField.isJsonNull) {
+            if (status != "no_match" || needsDetails) malformed()
+            FoodCandidate(name = query, nutrients = Nutrition.coreCodes.associateWith { null },
+                basis = NutrientBasis.UNKNOWN, source = "USDA FoodData Central", quantity = null,
+                sourceReference = SourceReference(provider = "USDA FoodData Central",
+                    attribution = "USDA-assisted search: no matching database record; nutrition unknown.", license = "CC0-1.0"),
+                kind = if (isDrink(query)) EntryKind.DRINK else EntryKind.FOOD)
+        } else {
+            if (!foodField.isJsonObject || status != "provisional") malformed()
+            // A missing branded basis stays unknown rather than guessing from the text.
+            usda(foodField.asJsonObject, summary = true).copy(needsDetails = needsDetails)
+        }
+        return base.copy(quantity = quantity, unit = unit, estimated = true, originalText = originalText,
+            matchStatus = if (status == "no_match") "no_match" else "unreviewed", metadata = base.metadata + mapOf(
+                "description_mode" to "usda_assisted", "description_item_input" to fragment,
+                "description_query" to query, "match_estimated" to "true", "quantity_estimated" to "true",
+                "quantity_hint_status" to if (quantity == null) "unspecified" else "parsed_unreviewed",
+                "unit_recognized" to recognized.toString(), "review_required" to "true"))
+    }
+
+    /** Historical response import only. No active client or gateway requests Nutritionix. */
     fun nutritionix(food: JsonObject, originalText: String): FoodCandidate {
         val name = food.text("food_name") ?: malformed()
         val q = positive(food.number("serving_qty")) ?: malformed()

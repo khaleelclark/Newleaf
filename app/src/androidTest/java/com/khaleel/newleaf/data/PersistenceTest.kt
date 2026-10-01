@@ -52,18 +52,35 @@ class PersistenceTest {
     }
     @Test fun restoreMergeRequiresConflictChoiceAndSkipsIdenticalEntries() = runBlocking {
         withJournal { repo ->
+            repo.saveSettings(repo.state.value.settings.copy(onboardingComplete = true))
             val existing = Entry(kind = EntryKind.FOOD, name = "Conflict fixture", notes = "Original")
             repo.upsert(existing)
-            val duplicate = Journal(listOf(existing), repo.state.value.settings)
+            val duplicate = Journal(listOf(existing), repo.state.value.settings.copy(onboardingComplete = false))
             repo.restoreJournal(duplicate, replace = false)
             assertEquals(1, repo.state.value.entries.count { it.id == existing.id })
+            assertTrue(repo.state.value.settings.onboardingComplete)
+            // Reproduce importing an unonboarded sample through the actual backup preview path.
+            repo.restoreArchive(JournalExports.previewRestore(JournalExports.backup(duplicate)), replace = false)
+            assertTrue(repo.state.value.settings.onboardingComplete)
             val incoming = duplicate.copy(entries = listOf(existing.copy(notes = "Incoming", version = 2)))
             try { repo.restoreJournal(incoming, false); fail("Conflict should require choice") } catch (e: RestoreConflictException) { assertEquals(existing.id, e.conflicts.single().id) }
             assertEquals("Original", repo.state.value.entries.single { it.id == existing.id }.notes)
             repo.restoreJournal(incoming, false, mapOf(existing.id to ConflictResolution.KEEP_EXISTING))
             assertEquals("Original", repo.state.value.entries.single { it.id == existing.id }.notes)
+            assertTrue(repo.state.value.settings.onboardingComplete)
             repo.restoreJournal(incoming, false, mapOf(existing.id to ConflictResolution.USE_INCOMING))
             assertEquals("Incoming", repo.state.value.entries.single { it.id == existing.id }.notes)
+            assertTrue(repo.state.value.settings.onboardingComplete)
+            val reopened = JournalRepository(context)
+            try { assertTrue(reopened.awaitLoaded().settings.onboardingComplete) } finally { reopened.close() }
+            // Merge also cannot mark an unonboarded installation as onboarded from foreign settings.
+            repo.saveSettings(repo.state.value.settings.copy(onboardingComplete = false))
+            val completedIncoming = repo.state.value.copy(settings = repo.state.value.settings.copy(onboardingComplete = true))
+            repo.restoreJournal(completedIncoming, replace = false)
+            assertFalse(repo.state.value.settings.onboardingComplete)
+            // Replace intentionally honors the saved onboarding setting.
+            repo.restoreJournal(completedIncoming, replace = true)
+            assertTrue(repo.state.value.settings.onboardingComplete)
         }
     }
     @Test fun archiveReplaceCreatesRecoveryAndRestoresPhotoBytesInPrivateStorage() = runBlocking {
@@ -157,4 +174,75 @@ class PersistenceTest {
         }
     }
 
+    @Test fun independentDeviceCredentialsAreEncryptedAndSurviveReopenWithoutRoomPlaintext() = runBlocking {
+        withJournal { repo ->
+            val originalSettings = repo.state.value.settings
+            val gateway = "device-fixture-gateway-${UUID.randomUUID()}"
+            val usda = "device-fixture-usda-${UUID.randomUUID()}"
+            suspend fun verify(expectedGateway: String, expectedUsda: String) {
+                val reopened = JournalRepository(context)
+                try {
+                    val settings = reopened.awaitLoaded().settings
+                    assertEquals(expectedGateway, settings.gatewayToken); assertEquals(expectedUsda, settings.usdaApiKey)
+                    val stored = JournalStorage.get(context).database.journalDao().meta().joinToString { it.value }
+                    assertFalse(stored.contains(gateway)); assertFalse(stored.contains(usda))
+                    val persistedSettings = JournalCodec.settings(JournalStorage.get(context).database.journalDao().meta().first { it.key == "settings" }.value)
+                    assertEquals("", persistedSettings.gatewayToken); assertEquals("", persistedSettings.usdaApiKey)
+                } finally { reopened.close() }
+            }
+            try {
+                repo.saveSettings(originalSettings.copy(gatewayToken = gateway, usdaApiKey = usda))
+                verify(gateway, usda)
+                val prefs = context.getSharedPreferences("newleaf_device_credentials", android.content.Context.MODE_PRIVATE)
+                val gatewayCiphertext = requireNotNull(prefs.getString("token", null))
+                val usdaCiphertext = requireNotNull(prefs.getString("usda_api_key", null))
+                assertTrue(gatewayCiphertext.contains(":")); assertTrue(usdaCiphertext.contains(":"))
+                prefs.all.values.forEach { value -> assertFalse(value.toString().contains(gateway)); assertFalse(value.toString().contains(usda)) }
+                val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+                assertTrue(keyStore.containsAlias("newleaf_gateway_token_v1"))
+                assertTrue(keyStore.containsAlias("newleaf_usda_api_key_v1"))
+                repo.saveSettings(repo.state.value.settings.copy(usdaApiKey = "$usda-updated"))
+                verify(gateway, "$usda-updated")
+                repo.saveSettings(repo.state.value.settings.copy(gatewayToken = ""))
+                verify("", "$usda-updated"); assertFalse(prefs.contains("token"))
+                repo.saveSettings(repo.state.value.settings.copy(gatewayToken = gateway, usdaApiKey = ""))
+                verify(gateway, ""); assertFalse(prefs.contains("usda_api_key"))
+            } finally { repo.saveSettings(originalSettings) }
+        }
+    }
+
+    @Test fun mergeAndReplaceJournalAndArchiveKeepBothLocalCredentialsAndRecoveryExcludesThem() = runBlocking {
+        withJournal { repo ->
+            val originalSettings = repo.state.value.settings
+            val gateway = "restore-local-gateway-${UUID.randomUUID()}"
+            val usda = "restore-local-usda-${UUID.randomUUID()}"
+            val localUrl = "https://local-fixture.invalid"
+            fun assertLocal() {
+                assertEquals(gateway, repo.state.value.settings.gatewayToken)
+                assertEquals(usda, repo.state.value.settings.usdaApiKey)
+                assertEquals(localUrl, repo.state.value.settings.gatewayUrl)
+            }
+            try {
+                repo.saveSettings(originalSettings.copy(gatewayUrl = localUrl, gatewayToken = gateway, usdaApiKey = usda))
+                val incoming = Journal(settings = AppSettings(gatewayUrl = "https://foreign-fixture.invalid", gatewayToken = "foreign-token", usdaApiKey = "foreign-key"))
+                for (replace in listOf(false, true)) {
+                    repo.restoreJournal(incoming, replace); assertLocal()
+                    val preview = JournalExports.previewRestore(JournalExports.backup(incoming))
+                    repo.restoreArchive(preview, replace); assertLocal()
+                    // Defense in depth for an in-memory preview bypassing the import parser.
+                    repo.restoreArchive(preview.copy(journal = incoming), replace); assertLocal()
+                }
+                val recovery = JournalExports.previewRestore(requireNotNull(repo.lastRecoveryBackup).readBytes())
+                assertEquals("", recovery.journal.settings.gatewayToken); assertEquals("", recovery.journal.settings.usdaApiKey)
+                val reopened = JournalRepository(context)
+                try {
+                    val settings = reopened.awaitLoaded().settings
+                    assertEquals(gateway, settings.gatewayToken); assertEquals(usda, settings.usdaApiKey)
+                } finally { reopened.close() }
+                repo.saveSettings(repo.state.value.settings.copy(gatewayToken = "", usdaApiKey = ""))
+                repo.restoreJournal(incoming, replace = true)
+                assertEquals("", repo.state.value.settings.gatewayToken); assertEquals("", repo.state.value.settings.usdaApiKey)
+            } finally { repo.saveSettings(originalSettings) }
+        }
+    }
 }

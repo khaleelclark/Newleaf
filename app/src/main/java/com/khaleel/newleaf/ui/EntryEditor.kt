@@ -33,6 +33,7 @@ import java.util.UUID
 @Composable
 internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange:(EditorDraft)->Unit,onSave:()->Unit,onClose:()->Unit,saveError:String?=null) {
     val scope=rememberCoroutineScope();val context=LocalContext.current
+    val usdaRoute=if(journal.settings.usdaApiKey.isNotBlank())"directly to USDA"else if(journal.settings.gatewayUrl.isNotBlank() && journal.settings.gatewayToken.isNotBlank())"to USDA through your optional gateway"else"to USDA after you add a free personal key in Settings"
     var lookupMode by remember { mutableStateOf("Manual") };var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) };var error by remember { mutableStateOf<String?>(null) }
     var results by remember { mutableStateOf<List<FoodCandidate>>(emptyList()) }
@@ -83,11 +84,16 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 if(draft.kind==EntryKind.MEAL) { Choices(listOf("Breakfast","Lunch","Dinner","Snack"),draft.category){onChange(draft.copy(category=it))};Field("Category (custom allowed)",draft.category,{onChange(draft.copy(category=it))}) }
                 Section(if(draft.kind==EntryKind.RECIPE)"Ingredients" else "Your meal", "Add foods and drinks; each item's nutrition is counted once.")
                 draft.items.forEach { item->Panel { Text(item.name,style=MaterialTheme.typography.titleMedium);Caption("${number(item.quantity)} ${item.unit} · ${item.nutrients["energy_kcal"]?.let { "${number(it)} kcal" } ?: "Calories unknown"} · ${item.portionEvidence}");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action("Edit"){reviewingEntry=item;reviewingCandidate=null;itemEditing=item.id;itemDialog=true};Action("Remove"){onChange(draft.copy(items=draft.items.filterNot {it.id==item.id}))}} } }
-                Choices(listOf("Manual","Search","Barcode","Describe"),lookupMode){lookupMode=it;error=null}
+                Choices(listOf("Manual","Search","Barcode","Describe"),lookupMode){lookupMode=it;error=null;results=emptyList()}
                 when(lookupMode) {
                     "Manual"->Action("+ Add food or drink",Modifier.fillMaxWidth()){selectingStandalone=false;reviewingCandidate=null;reviewingEntry=null;itemEditing=null;itemDialog=true}
-                    "Describe"->{ Field("Describe your meal",draft.originalText,{onChange(draft.copy(originalText=it))},lines=3);Caption("Analyzing sends this description to your configured nutrition gateway and Nutritionix. Review every item and estimated amount before saving.");Action(if(loading)"Analyzing…" else "Analyze description",enabled=!loading){lookup("Describe",draft.originalText)} }
-                    else->{Field(if(lookupMode=="Barcode")"Barcode digits" else "Search foods",query,{query=it});Caption(if(lookupMode=="Search")"Search sends your query to USDA through your configured gateway." else "Barcode lookup sends only this code to Open Food Facts.");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action(if(loading)"Looking up…" else "Look up",enabled=!loading){lookup(lookupMode,query)};if(lookupMode=="Barcode")Action("Open scanner"){scanner.launch(ScanOptions().setDesiredBarcodeFormats(listOf(ScanOptions.EAN_8,ScanOptions.EAN_13,ScanOptions.UPC_A,ScanOptions.ITF)).setPrompt("Scan a food barcode · manual entry is also available").setBeepEnabled(false).setOrientationLocked(false))}}}
+                    "Describe"->{
+                        Field("Describe foods",draft.originalText,{onChange(draft.copy(originalText=it))},lines=3)
+                        Caption("List up to 8 foods separated by commas or new lines, with optional quantity and unit: 2 eggs, 1 cup milk.")
+                        Caption("Find suggestions sends food queries $usdaRoute. Confirm each suggested food and portion before adding it; parsed portions are unverified estimates and missing nutrition stays unknown.")
+                        Action(if(loading)"Finding suggestions…" else "Find suggestions",enabled=!loading){lookup("Describe",draft.originalText)}
+                    }
+                    else->{Field(if(lookupMode=="Barcode")"Barcode digits" else "Search foods",query,{query=it});Caption(if(lookupMode=="Search")"Search sends your query $usdaRoute." else "Barcode lookup sends only this code to Open Food Facts.");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action(if(loading)"Looking up…" else "Look up",enabled=!loading){lookup(lookupMode,query)};if(lookupMode=="Barcode")Action("Open scanner"){scanner.launch(ScanOptions().setDesiredBarcodeFormats(listOf(ScanOptions.EAN_8,ScanOptions.EAN_13,ScanOptions.UPC_A,ScanOptions.ITF)).setPrompt("Scan a food barcode · manual entry is also available").setBeepEnabled(false).setOrientationLocked(false))}}}
                 }
                 if(lookupMode=="Barcode" && query.isNotBlank())Action("Create a custom item with this barcode") {
                     reviewingEntry=Entry(kind=EntryKind.FOOD,name="",sourceId=query,sourceReference=SourceReference(provider="manual",barcode=query))
@@ -95,7 +101,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 }
                 error?.let { Caption(it) }
                 if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())
-                results.forEach { result->Panel { Text(result.name,style=MaterialTheme.typography.titleMedium);Caption(listOfNotNull(result.brand,result.source,"${number(result.quantity)} ${result.unit}",if(result.estimated)"Estimated portion" else null).joinToString(" · "));Action("Review item",enabled=!loading){ scope.launch { loading=true;try { reviewingCandidate=if(result.needsDetails || result.source.lowercase().contains("usda"))NutritionClient(journal.settings).details(result) else result;reviewingEntry=null;itemEditing=null;itemDialog=true } catch(e:Exception){error=e.message} finally{loading=false} } } } }
+                results.forEach { result->Panel { Text(result.name,style=MaterialTheme.typography.titleMedium);Caption(listOfNotNull(result.brand,result.source,result.quantity?.let{"${number(it)} ${result.unit}"},if(result.quantity==null)"Portion unknown"else if(result.estimated)"Estimated portion" else null).joinToString(" · "));Action("Review item",enabled=!loading){ scope.launch { loading=true;try { reviewingCandidate=if(result.needsDetails || result.source.lowercase().contains("usda"))NutritionClient(journal.settings).details(result) else result;reviewingEntry=null;itemEditing=null;itemDialog=true } catch(e:Exception){error=e.message} finally{loading=false} } } } }
                 val local=journal.entries.filter { it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK) && (query.isBlank() || it.name.contains(query,true)) }.distinctBy { "${it.name}:${it.quantity}:${it.unit}" }.sortedByDescending { it.isFavorite }.take(8)
                 if(local.isNotEmpty()) { Section("Favorites & recent");local.forEach { item->Action("${if(item.isFavorite)"♡  " else ""}${item.name} · ${number(item.quantity)} ${item.unit}",Modifier.fillMaxWidth()){ reviewingEntry=item.copy(id=UUID.randomUUID().toString(),mealId=null,isLibrary=false);reviewingCandidate=null;itemEditing=null;itemDialog=true } } }
                 if(draft.kind==EntryKind.RECIPE) { Field("Yield · servings",draft.servings,{onChange(draft.copy(servings=it))},numeric=true);Field("Final cooked weight · g (optional)",draft.yieldGrams,{onChange(draft.copy(yieldGrams=it))},numeric=true);Caption("Gram portions require final cooked weight. Missing ingredient nutrition remains unknown.") }
@@ -107,7 +113,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 Choices(listOf("Manual","Search","Barcode"),lookupMode){lookupMode=it;error=null;results=emptyList()}
                 if(lookupMode!="Manual") {
                     Field(if(lookupMode=="Barcode")"Barcode digits"else"Search foods",query,{query=it})
-                    Caption(if(lookupMode=="Barcode")"Only the barcode goes to Open Food Facts."else"Your food query goes to USDA through the configured gateway.")
+                    Caption(if(lookupMode=="Barcode")"Only the barcode goes to Open Food Facts."else"Your food query goes $usdaRoute.")
                     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                         Action(if(loading)"Looking up…"else"Look up",enabled=!loading){lookup(lookupMode,query)}
                         if(lookupMode=="Barcode")Action("Open scanner"){scanner.launch(ScanOptions().setDesiredBarcodeFormats(listOf(ScanOptions.EAN_8,ScanOptions.EAN_13,ScanOptions.UPC_A,ScanOptions.ITF)).setPrompt("Scan a food barcode").setBeepEnabled(false).setOrientationLocked(false))}
@@ -200,7 +206,7 @@ internal fun NutrientFields(values:Map<String,String>,onChange:(Map<String,Strin
 @Composable
 internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditions:Boolean=true,onDismiss:()->Unit,onConfirm:(Entry)->Unit) {
     var name by remember { mutableStateOf(candidate?.name ?: original?.name ?: "") }
-    var quantity by remember { mutableStateOf(decimal(candidate?.quantity ?: original?.quantity ?: 1.0)) }
+    var quantity by remember { mutableStateOf(if(candidate!=null && candidate.metadata["description_mode"]=="usda_assisted")decimal(candidate.quantity)else decimal(candidate?.quantity ?: original?.quantity ?: 1.0)) }
     var unit by remember { mutableStateOf(candidate?.unit ?: original?.unit ?: "serving") }
     var kind by remember { mutableStateOf(candidate?.kind ?: original?.kind ?: EntryKind.FOOD) }
     var evidence by remember { mutableStateOf(if(candidate?.estimated==true)"estimated" else original?.portionEvidence ?: "unspecified") }
@@ -214,6 +220,14 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
         Surface(Modifier.fillMaxWidth(.94f).fillMaxHeight(.9f),shape=androidx.compose.foundation.shape.RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.background) {
             Column(Modifier.padding(22.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Section("Review portion",candidate?.source ?: original?.source ?: "Manual entry")
+                if(candidate!=null && candidate.originalText.isNotBlank()) {
+                    Caption("Suggested match · confirm the food and portion. Missing nutrition stays unknown.")
+                    Caption("Your input: ${candidate.originalText}")
+                    if(candidate.metadata["description_mode"]=="usda_assisted") {
+                        Caption(if(candidate.quantity==null)"No quantity supplied · enter a portion or leave it unknown."else"Portion from your text · unverified estimate. Review before confirming.")
+                        if(candidate.metadata["unit_recognized"]=="false")Caption("Unit needs review · no conversion is guessed.")
+                    } else if(candidate.estimated)Caption("Estimated portion · review before confirming.")
+                }
                 (candidate?.sourceReference ?: original?.sourceReference)?.let{source->
                     if(source.attribution.isNotBlank())Caption(source.attribution)
                     if(source.license.isNotBlank())Caption(source.license)

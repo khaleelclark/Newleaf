@@ -1,0 +1,7 @@
+# USDA public-response fixtures
+
+`usda-live-search-2026-10-01.json` and `usda-live-detail-2026-10-01.json` are the exact public JSON response bytes captured by the parent on October 1, 2026, using two authorized free read-only official FoodData Central HTTPS calls with header-only authentication. The nutrition engineer received public response files only and did not read the private key or make additional calls. No request headers/credentials are included. These are reference catalog data, not a private journal or fabricated nutrient sample.
+
+Source: U.S. Department of Agriculture, Agricultural Research Service. FoodData Central. https://fdc.nal.usda.gov/ . Data are public domain/CC0 1.0: https://fdc.nal.usda.gov/api-guide/ and https://creativecommons.org/publicdomain/zero/1.0/ . Search contains Foundation Fuji/Gala apples; selected detail is fdcId1750340, Fuji with skin, raw.
+
+The declared portion is 1 RACC = 140 g, not one apple or an arbitrary serving. Nutrients use the Foundation per100g basis; absent saturated fat and nutrient-group amounts remain unknown. Explicit zero lactose/folate remain zero. Published Atwater Specific energy is 58.20306 kcal/100g, with the adapter recording its energy inference/source code. Replay through description verifies mapper/client/portion behavior against these actual bytes; it does not assert that the saved Foundation response came from the description's Survey/FNDDS query or that Android phone networking has been verified. Parent Gradle owns execution.

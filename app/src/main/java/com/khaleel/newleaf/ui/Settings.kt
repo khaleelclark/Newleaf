@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,8 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
     var local by remember{mutableStateOf(settings)};var goal by remember{mutableStateOf(number(settings.waterGoalMl?.let{Units.displayVolume(it,settings.volumeUnit)}))}
     var sourceStatus by remember{mutableStateOf<GatewayStatus?>(null)};var checking by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)}
     val scope=rememberCoroutineScope();val context=LocalContext.current
+    val uriHandler=LocalUriHandler.current
+    var advancedSources by remember{mutableStateOf(false)}
     var showingLicenses by remember{mutableStateOf(false)}
     val notificationPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->
         local=local.copy(remindersEnabled=granted)
@@ -71,13 +74,24 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
             }
             Panel{
                 Section("Nutrition sources", "Manual logging, favorites and exports work offline.")
-                Caption("Open Food Facts · packaged food barcode lookup\nUSDA FoodData Central · general food search\nNutritionix · meal description analysis")
-                Field("Gateway URL · https://your-host",local.gatewayUrl,{local=local.copy(gatewayUrl=it);sourceStatus=null})
-                OutlinedTextField(value=local.gatewayToken,onValueChange={local=local.copy(gatewayToken=it);sourceStatus=null},label={Text("Device access token")},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth(),shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                Caption("Provider keys stay on your gateway. The device token is protected locally and excluded from exports and backups.")
-                Action(if(checking)"Checking…" else "Check source status",enabled=!checking){scope.launch{checking=true;error=null;try{sourceStatus=NutritionClient(local).status()}catch(e:Exception){error=e.message ?: "Gateway unavailable"}finally{checking=false}}}
-                sourceStatus?.let{status->listOf("USDA" to status.usda,"Nutritionix" to status.nutritionix,"Open Food Facts" to status.openFoodFacts).forEach{(name,state)->Caption("$name · ${if(state.enabled && state.configured)"Available" else "Unavailable"}${state.reason?.let{" · $it"} ?: ""}")}}
-                Caption("Search sends food queries to USDA. Barcode lookup sends the code to Open Food Facts. Analyze sends your typed description to Nutritionix through your gateway. Nothing sends the rest of your journal.")
+                Caption("Open Food Facts · free barcode lookup, no account needed.\nUSDA FoodData Central · free food search and Describe suggestions. A free USDA API key signup is required.\nNo subscription or paid nutrition service. No hosting needed with your personal key.")
+                OutlinedTextField(value=local.usdaApiKey,onValueChange={local=local.copy(usdaApiKey=it);sourceStatus=null},label={Text("Personal USDA API key")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Password),singleLine=true,modifier=Modifier.fillMaxWidth(),shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                Action("Get a free USDA key",Modifier.fillMaxWidth()){runCatching{uriHandler.openUri("https://fdc.nal.usda.gov/api-key-signup/")}.onFailure{error="The USDA signup page could not open. Visit fdc.nal.usda.gov/api-key-signup/ in your browser."}}
+                Caption("Your personal key is protected on this phone with Android Keystore and excluded from exports and backups. Search and Describe connect directly to USDA. Open Food Facts barcode lookup works without a key or gateway.")
+                TextButton(onClick={advancedSources=!advancedSources}){Text(if(advancedSources)"Hide optional gateway"else"Advanced · optional gateway")}
+                if(advancedSources) {
+                    Caption("Optional fallback when your personal USDA key is blank. Shared provider keys stay on the gateway.")
+                    Field("Gateway URL · https://your-host",local.gatewayUrl,{local=local.copy(gatewayUrl=it);sourceStatus=null})
+                    OutlinedTextField(value=local.gatewayToken,onValueChange={local=local.copy(gatewayToken=it);sourceStatus=null},label={Text("Device access token")},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth(),shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    Caption("The device token is protected locally and excluded from exports and backups.")
+                }
+                Action(if(checking)"Checking…" else if(local.usdaApiKey.isNotBlank())"Check setup"else"Check source status",enabled=!checking){scope.launch{checking=true;error=null;try{sourceStatus=NutritionClient(local).status()}catch(e:Exception){error=e.message ?: "Nutrition source unavailable"}finally{checking=false}}}
+                sourceStatus?.let{status->listOf("USDA" to status.usda,"Open Food Facts" to status.openFoodFacts).forEach{(name,state)->
+                    val label=if(name=="USDA" && local.usdaApiKey.isNotBlank())"Personal key entered · not checked online"else if(state.enabled && state.configured)"Configured · not checked online"else"Unavailable"
+                    Caption("$name · $label${state.reason?.let{" · $it"} ?: ""}")
+                }}
+                Caption("Setup status shows configuration only. Use Search or Describe to check your USDA key with the service.")
+                Caption("Search and Describe send food queries directly to USDA with your personal key, or through your optional gateway when no personal key is set. Describe accepts comma/newline food lists and suggests matches that need your confirmation. Barcode lookup sends only the code to Open Food Facts. The rest of your journal stays on this phone.")
             }
             Panel{Section("Your record, in your hands");Action("Export JSON, CSV or Markdown",Modifier.fillMaxWidth(),onClick=onExport);Action("Create full backup",Modifier.fillMaxWidth(),onClick=onBackup);Action("Restore from file",Modifier.fillMaxWidth(),onClick=onRestore);Caption("Exports are readable wherever you save them. Uninstalling or clearing app data removes this phone's journal. Save a full backup first.")}
             Panel{Section("About Newleaf");Caption("Version ${com.khaleel.newleaf.BuildConfig.VERSION_NAME} · A private everyday journal.");Action("Third-party notices & licenses",Modifier.fillMaxWidth()){showingLicenses=true}}

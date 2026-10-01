@@ -8,6 +8,7 @@ import com.khaleel.newleaf.data.EntryKind
 import com.khaleel.newleaf.data.PortionDefinition
 import com.khaleel.newleaf.data.SourceReference
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
@@ -40,6 +41,348 @@ class NutritionClientTest {
     private fun nx(): String = """{"foods":[{"food_name":"milk","serving_qty":2,"serving_unit":"cup","serving_weight_grams":488,"nf_calories":240,"nf_total_fat":8,"nf_protein":16,
       "full_nutrients":[{"attr_id":203,"value":16},{"attr_id":301,"value":500}],
       "alt_measures":[{"measure":"tablespoon","qty":1,"serving_weight":15.25}]}]}"""
+    private fun descriptionItem(input: String, quantity: Double?, unit: String, matched: Boolean = true,
+        needsDetails: Boolean = false, recognized: Boolean = true): String = JsonObject().apply {
+        addProperty("input_text", input); addProperty("query", input); addProperty("unit_hint", unit)
+        addProperty("quantity_hint", quantity); addProperty("quantity_estimated", true)
+        addProperty("unit_recognized", recognized); addProperty("match_estimated", true)
+        addProperty("needs_details", needsDetails); addProperty("match_status", if (matched) "provisional" else "no_match")
+        add("food", if (matched) json(food()) else com.google.gson.JsonNull.INSTANCE)
+    }.toString()
+    private fun described(original: String, vararg items: String): String = JsonObject().apply {
+        addProperty("mode", "usda_assisted"); addProperty("review_required", true); addProperty("original_text", original)
+        add("foods", com.google.gson.JsonArray().apply { items.forEach { add(json(it)) } })
+    }.toString()
+
+    @Test fun freeDescriptionMapsCommaMealFractionsWithReviewAndOriginalInput() = runBlocking<Unit> {
+        val input = "  1/2 cup beans, 100g rice  "
+        val fake = Fake(NutritionResponse(200, described(input,
+            descriptionItem("1/2 cup beans", .5, "cup"), descriptionItem("100g rice", 100.0, "g"))))
+        val client = NutritionClient(settings, fake)
+        val candidates = client.describe(input)
+        assertEquals(2, candidates.size)
+        assertEquals("https://fixture.invalid/v1/describe", fake.requests.single().url)
+        assertEquals("POST", fake.requests.single().method)
+        assertEquals(input, json(fake.requests.single().body!!).get("text").asString)
+        assertEquals(60000, fake.requests.single().readTimeoutMillis)
+        val c = candidates.first()
+        assertEquals("USDA FoodData Central", c.source)
+        assertEquals("usda:123", c.sourceId)
+        assertEquals(.5, c.quantity!!, 0.0)
+        assertEquals("cup", c.unit)
+        assertEquals(input, c.originalText)
+        assertEquals("1/2 cup beans", c.metadata["description_item_input"])
+        assertEquals("true", c.metadata["review_required"])
+        assertTrue(c.estimated)
+        assertEquals("unreviewed", c.matchStatus)
+        assertEquals(150.0, c.toEntry().nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals("estimated", c.toEntry().nutrientEvidence["energy_kcal"]!!.status)
+        assertSame(c, client.details(c))
+        assertEquals(1, fake.requests.size)
+        assertEquals(200.0, candidates[1].toEntry().nutrients["energy_kcal"]!!, 1e-9)
+    }
+
+    @Test fun freeDescriptionUnknownAndUnspecifiedPortionsStayUnknown() = runBlocking<Unit> {
+        val input = "2 glugs juice, beans"
+        val fake = Fake(NutritionResponse(200, described(input,
+            descriptionItem("2 glugs juice", 2.0, "glugs", recognized = false), descriptionItem("beans", null, "serving"))))
+        val c = NutritionClient(settings, fake).describe(input)
+        assertEquals("glugs", c[0].unit)
+        assertEquals("false", c[0].metadata["unit_recognized"])
+        assertTrue(c[0].toEntry().nutrients.values.all { it == null })
+        assertNull(c[0].toEntry().massGrams)
+        assertNull(c[1].quantity)
+        assertTrue(c[1].toEntry().nutrients.values.all { it == null })
+    }
+
+    @Test fun freeDescriptionPartialNoMatchRemainsEditableUnknownCandidate() = runBlocking<Unit> {
+        val input = "beans, unmatched"
+        val fake = Fake(NutritionResponse(200, described(input,
+            descriptionItem("beans", 100.0, "g"), descriptionItem("unmatched", null, "serving", matched = false))))
+        val client = NutritionClient(settings, fake)
+        val c = client.describe(input)
+        assertEquals(2, c.size)
+        assertEquals("no_match", c[1].matchStatus)
+        assertNull(c[1].sourceId)
+        assertEquals(NutrientBasis.UNKNOWN, c[1].basis)
+        assertEquals("unmatched", c[1].name)
+        assertEquals(input, c[1].toEntry().originalText)
+        assertTrue(c[1].toEntry(100.0, "g").nutrients.values.all { it == null })
+        assertSame(c[1], client.details(c[1]))
+        assertEquals(1, fake.requests.size)
+    }
+
+    @Test fun freeDescriptionFallbackDetailsPreserveHintsAndFullOriginal() = runBlocking<Unit> {
+        val input = "1/2 cup beans"
+        val fake = Fake(NutritionResponse(200, described(input, descriptionItem(input, .5, "cup", needsDetails = true))))
+        val client = NutritionClient(settings, fake)
+        val c = client.describe(input).single()
+        fake.response = NutritionResponse(200, food())
+        val d = client.details(c)
+        assertFalse(d.needsDetails)
+        assertEquals(.5, d.quantity!!, 0.0)
+        assertEquals("cup", d.unit)
+        assertEquals(input, d.originalText)
+        assertTrue(d.estimated)
+        assertEquals("true", d.metadata["review_required"])
+        assertEquals(150.0, d.toEntry().nutrients["energy_kcal"]!!, 1e-9)
+    }
+
+    @Test fun freeDescriptionRejectsExcessItemsAndLegacyPaidResponses() = runBlocking<Unit> {
+        val fake = Fake(NutritionResponse(200, nx()))
+        val client = NutritionClient(settings, fake)
+        expect(NutritionError.INVALID_REQUEST) { client.describe(List(9) { "rice" }.joinToString(",")) }
+        assertTrue(fake.requests.isEmpty())
+        expect(NutritionError.MALFORMED_RESPONSE) { client.describe("rice") }
+        assertTrue(fake.requests.all { it.url.endsWith("/v1/describe") })
+        fake.response = NutritionResponse(403, """{"error":{"code":"free_only"}}""")
+        expect(NutritionError.FREE_ONLY) { client.describe("rice") }
+        fake.response = NutritionResponse(200, described("rice", *Array(9) { descriptionItem("rice", null, "serving") }))
+        expect(NutritionError.MALFORMED_RESPONSE) { client.describe("rice") }
+    }
+
+    @Test fun surveyQuantityPrefixedPortionLabelUsesExplicitGramWeight() {
+        val root = json(food()).apply {
+            add("foodPortions", JsonParser.parseString("""[{"amount":1,"gramWeight":150,"portionDescription":"1 cup","measureUnit":{"name":"undetermined"}}]"""))
+        }
+        val c = ProviderMappers.usda(root)
+        assertEquals("cup", c.portions.single { it.label == "cup" }.label)
+        assertEquals(150.0, c.toEntry(.5, "cup").nutrients["energy_kcal"]!!, 1e-9)
+    }
+
+    @Test fun directPersonalUsdaSearchDetailsAndStatusUseOnlyHeaderKey() = runBlocking<Unit> {
+        val key = "personal-usda-fixture-key"
+        val personal = settings.copy(usdaApiKey = key, gatewayUrl = "http://invalid-unused", gatewayToken = "unused-token")
+        val fake = Fake(NutritionResponse(200, """{"foods":[${food()}]}"""))
+        val client = NutritionClient(personal, fake)
+        assertTrue(client.status().usda.enabled)
+        assertFalse(client.status().nutritionix.enabled)
+        assertTrue(fake.requests.isEmpty()) // status means configured; it does not validate account credentials
+        val c = client.search("black beans").single()
+        assertEquals("https://api.nal.usda.gov/fdc/v1/foods/search?query=black+beans&pageSize=20", fake.requests.single().url)
+        fake.response = NutritionResponse(200, food())
+        val d = client.details(c)
+        assertFalse(d.needsDetails)
+        assertEquals("https://api.nal.usda.gov/fdc/v1/food/123", fake.requests.last().url)
+        for (request in fake.requests) {
+            assertEquals(key, request.headers["X-Api-Key"])
+            assertFalse(request.headers.containsKey("Authorization"))
+            assertFalse(request.url.contains(key))
+            assertFalse(request.url.contains("api_key"))
+            assertEquals("GET", request.method)
+            assertNull(request.body)
+            assertFalse(request.toString().contains(key))
+        }
+        assertFalse(Gson().toJson(d.toEntry()).contains(key))
+        fake.response = NutritionResponse(200, off())
+        client.barcode("3017620422003")
+        assertFalse(fake.requests.last().headers.containsKey("X-Api-Key"))
+        assertFalse(fake.requests.last().headers.containsKey("Authorization"))
+        assertTrue(fake.requests.last().url.startsWith("https://world.openfoodfacts.org/"))
+    }
+
+    @Test fun directPersonalDescriptionPreservesFractionsUnknownsOrderAndReview() = runBlocking<Unit> {
+        val requests = mutableListOf<NutritionRequest>()
+        val input = "  1 1/2 cups beans, 2 glugs juice\nmissing  "
+        val client = NutritionClient(AppSettings(usdaApiKey = "personal-fixture-key"), NutritionTransport { request ->
+            requests.add(request)
+            when {
+                request.url.contains("query=missing") -> NutritionResponse(200, """{"foods":[]}""")
+                request.url.contains("foods/search") -> NutritionResponse(200, """{"foods":[${food()}]}""")
+                else -> NutritionResponse(200, food())
+            }
+        })
+        val c = client.describe(input)
+        assertEquals(3, c.size)
+        assertEquals(1.5, c[0].quantity!!, 0.0)
+        assertEquals("cup", c[0].unit)
+        assertEquals(450.0, c[0].toEntry().nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals("glugs", c[1].unit)
+        assertEquals("glugs juice", c[1].metadata["description_query"])
+        assertTrue(c[1].toEntry().nutrients.values.all { it == null })
+        assertEquals("no_match", c[2].matchStatus)
+        assertNull(c[2].quantity)
+        assertTrue(c.all { it.originalText == input && it.estimated && it.metadata["review_required"] == "true" })
+        assertEquals(5, requests.size)
+        assertTrue(requests.all { it.method == "GET" && it.url.startsWith("https://api.nal.usda.gov/fdc/v1/") && it.headers["X-Api-Key"] == "personal-fixture-key" })
+        assertTrue(requests.none { it.url.contains("api_key") || it.headers.containsKey("Authorization") })
+        assertSame(c[0], client.details(c[0]))
+        assertEquals(5, requests.size)
+    }
+
+    @Test fun localDescriptionParserValidatesEveryItemBeforeAnyDirectCall() = runBlocking<Unit> {
+        val fake = Fake(NutritionResponse(200, "{}"))
+        val client = NutritionClient(AppSettings(usdaApiKey = "fixture-key"), fake)
+        for (input in listOf("1/0 cup rice", "0 g rice", "-1 g rice", "1000001 g rice", "rice, 1 g " + "x".repeat(201), List(9) { "rice" }.joinToString(","))) {
+            expect(NutritionError.INVALID_REQUEST) { client.describe(input) }
+        }
+        assertTrue(fake.requests.isEmpty())
+        val parsed = MealDescriptionParser.parse("2 eggs, ½ cup milk, two tablespoons oil, 100g rice")
+        assertEquals(listOf(2.0, .5, 2.0, 100.0), parsed.map { it.quantity })
+        assertEquals(listOf("item", "cup", "tablespoon", "g"), parsed.map { it.unit })
+        assertEquals("eggs", parsed.first().query)
+        assertFalse(parsed.first().recognized)
+        assertEquals(8, MealDescriptionParser.parse(List(8) { "rice" }.joinToString(",")).size)
+    }
+
+    @Test fun directDescriptionDetailFallbackRetainsHintsAndRejectsIdentityMismatch() = runBlocking<Unit> {
+        val requests = mutableListOf<NutritionRequest>()
+        var detail = NutritionResponse(404, "{}")
+        val client = NutritionClient(AppSettings(usdaApiKey = "fixture-key"), NutritionTransport { request ->
+            requests.add(request)
+            if (request.url.contains("foods/search")) NutritionResponse(200, """{"foods":[${food()}]}""") else detail
+        })
+        val c = client.describe("1/2 cup beans").single()
+        assertTrue(c.needsDetails)
+        detail = NutritionResponse(200, food())
+        val d = client.details(c)
+        assertEquals(.5, d.quantity!!, 0.0)
+        assertEquals("cup", d.unit)
+        assertEquals("1/2 cup beans", d.originalText)
+        assertEquals("true", d.metadata["quantity_estimated"])
+        assertEquals(3, requests.size)
+        detail = NutritionResponse(200, food().replace("\"fdcId\":123", "\"fdcId\":124"))
+        expect(NutritionError.MALFORMED_RESPONSE) { client.describe("rice") }
+        assertEquals(5, requests.size)
+    }
+
+    @Test fun directKeyValidationAndFailureNeverFallBackOrRetry() = runBlocking<Unit> {
+        val fake = Fake(NutritionResponse(503, "{}"))
+        for (key in listOf("bad\nkey", "bad key", "x".repeat(257))) {
+            val client = NutritionClient(settings.copy(usdaApiKey = key), fake)
+            expect(NutritionError.INVALID_REQUEST) { client.search("rice") }
+        }
+        assertTrue(fake.requests.isEmpty())
+        expect(NutritionError.UNAVAILABLE) { NutritionClient(settings.copy(usdaApiKey = "fixture-key"), fake).describe("rice") }
+        assertEquals(1, fake.requests.size)
+        assertTrue(fake.requests.single().url.startsWith("https://api.nal.usda.gov/"))
+        assertFalse(fake.requests.single().headers.containsKey("Authorization"))
+        fake.response = NutritionResponse(401, """{"error":{"message":"fake-upstream-secret"}}""")
+        val error = expect(NutritionError.AUTHENTICATION) { NutritionClient(settings.copy(usdaApiKey = "fixture-key"), fake).search("rice") }
+        assertEquals("Nutrition authentication failed. Check your USDA key or gateway token.", error.message)
+        assertFalse(error.toString().contains("fixture-key"))
+        assertFalse(error.toString().contains("fake-upstream-secret"))
+    }
+
+    @Test fun directPolicyBudgetsAndProviderCooldownAreSharedAndDoNotRetry() = runBlocking<Unit> {
+        var now = 0L
+        val policy = UsdaDirectPolicy { now }
+        var calls = 0
+        repeat(100) { policy.call { calls++ } }
+        expect(NutritionError.BUDGET_EXCEEDED) { policy.call { calls++ } }
+        assertEquals(100, calls)
+        now = 3600000L
+        policy.call { calls++ }
+        assertEquals(101, calls)
+        repeat(30) { policy.action() }
+        expect(NutritionError.RATE_LIMITED) { policy.action() }
+        now += 60000L
+        policy.action()
+        expect(NutritionError.RATE_LIMITED) { policy.call { calls++; throw NutritionException(NutritionError.RATE_LIMITED, 120) } }
+        expect(NutritionError.RATE_LIMITED) { policy.call { calls++ } }
+        assertEquals(102, calls)
+        now += 120000L
+        policy.call { calls++ }
+        assertEquals(103, calls)
+    }
+
+    @Test fun directPolicyConcurrencyAndCancelledCallsReleaseSharedSlots() = runBlocking<Unit> {
+        val policy = UsdaDirectPolicy { 0L }
+        val fourStarted = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var active = 0
+        var maximum = 0
+        val jobs = List(8) { async {
+            policy.call {
+                active++
+                maximum = maxOf(maximum, active)
+                if (active == 4) fourStarted.complete(Unit)
+                try { release.await() } finally { active-- }
+            }
+        } }
+        fourStarted.await()
+        assertEquals(4, maximum)
+        release.complete(Unit)
+        jobs.awaitAll()
+        assertEquals(0, active)
+        assertEquals(4, maximum)
+        val entered = CompletableDeferred<Unit>()
+        val hold = CompletableDeferred<Unit>()
+        val cancelled = async { policy.call { entered.complete(Unit); hold.await() } }
+        entered.await()
+        cancelled.cancelAndJoin()
+        assertEquals("available", policy.call { "available" })
+    }
+
+    private fun liveUsdaFixture(kind: String): String = javaClass.getResourceAsStream(
+        "/nutrition/usda-live-$kind-2026-10-01.json")!!.bufferedReader().use { it.readText() }
+
+    @Test fun actualUsdaSearchDetailsReplayKeepsReferenceBasisPortionsAndUnknowns() = runBlocking<Unit> {
+        val fake = Fake(NutritionResponse(200, liveUsdaFixture("search")))
+        val client = NutritionClient(AppSettings(usdaApiKey = "public-response-replay-fixture"), fake)
+        val candidates = client.search("apples")
+        assertEquals(2, candidates.size)
+        assertEquals("usda:1750340", candidates.first().sourceId)
+        assertEquals("Apples, fuji, with skin, raw", candidates.first().name)
+        assertTrue(candidates.first().needsDetails)
+        fake.response = NutritionResponse(200, liveUsdaFixture("detail"))
+        val c = client.details(candidates.first())
+        assertEquals(NutrientBasis.PER_100_G, c.basis)
+        assertEquals(100.0, c.basisQuantity!!, 0.0)
+        assertEquals("g", c.basisUnit)
+        assertNull(c.servingMassG) // RACC is the named source portion, not an implied serving/apple
+        val portion = c.portions.single()
+        assertEquals("RACC", portion.label)
+        assertEquals(1.0, portion.quantity, 0.0)
+        assertEquals(140.0, portion.massGrams!!, 0.0)
+        assertEquals(58.20306, c.nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals("usda:2048", c.nutrientProviderCodes["energy_kcal"])
+        assertTrue("energy_kcal" in c.estimatedNutrients)
+        assertNull(c.nutrients["saturated_fat_g"])
+        assertNull(c.nutrients["usda_2045_g"])
+        assertEquals(0.0, c.nutrients["usda_1013_g"]!!, 0.0)
+        val e = c.toEntry(1.0, "RACC")
+        val grams = c.toEntry(140.0, "g")
+        assertEquals(grams.nutrients, e.nutrients)
+        assertEquals(140.0, e.massGrams!!, 0.0)
+        assertEquals(81.484284, e.nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals(.2078125, e.nutrients["protein_g"]!!, 1e-9)
+        assertEquals(1.4182, e.nutrients["sodium_mg"]!!, 1e-9)
+        assertEquals(2.905, e.nutrients["fiber_g"]!!, 1e-9)
+        assertNull(e.nutrients["saturated_fat_g"])
+        assertEquals("estimated", e.nutrientEvidence["energy_kcal"]!!.status)
+        assertEquals("CC0-1.0", e.sourceReference!!.license)
+        assertTrue(c.toEntry(1.0, "apple").nutrients.values.all { it == null })
+        assertTrue(c.toEntry(1.0, "serving").nutrients.values.all { it == null })
+        assertTrue(c.toEntry(1.0, "mL").nutrients.values.all { it == null })
+        assertEquals(2, fake.requests.size)
+        assertTrue(fake.requests.all { it.url.startsWith("https://api.nal.usda.gov/") && !it.url.contains("api_key") })
+    }
+
+    @Test fun actualUsdaDescriptionReplayPreservesKnownRaccUnknownAppleAndUnspecifiedAmount() = runBlocking<Unit> {
+        val requests = mutableListOf<NutritionRequest>()
+        val input = "1 RACC apples, 1 apple, apples"
+        val search = liveUsdaFixture("search")
+        val detail = liveUsdaFixture("detail")
+        val client = NutritionClient(AppSettings(usdaApiKey = "public-response-replay-fixture"), NutritionTransport { request ->
+            requests.add(request)
+            NutritionResponse(200, if (request.url.contains("foods/search")) search else detail)
+        })
+        val c = client.describe(input)
+        assertEquals(3, c.size)
+        assertEquals(81.484284, c[0].toEntry().nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals("RACC", c[0].unit)
+        assertEquals("false", c[0].metadata["unit_recognized"])
+        assertEquals("item", c[1].unit)
+        assertTrue(c[1].toEntry().nutrients.values.all { it == null })
+        assertNull(c[2].quantity)
+        assertTrue(c[2].toEntry().nutrients.values.all { it == null })
+        assertTrue(c.all { it.originalText == input && it.sourceId == "usda:1750340" && it.matchStatus == "unreviewed" })
+        assertEquals(6, requests.size)
+        assertSame(c[0], client.details(c[0]))
+        assertEquals(6, requests.size)
+    }
+
     private suspend fun expect(category: NutritionError, block: suspend () -> Unit): NutritionException {
         try { block(); fail("Expected $category") } catch (error: NutritionException) { assertEquals(category, error.category); return error }
         throw AssertionError()
@@ -97,9 +440,8 @@ class NutritionClientTest {
         expect(NutritionError.MALFORMED_RESPONSE) { client.details("123") }
     }
 
-    @Test fun nutritionixConsumedBasisIsNotScaledTwice() = runBlocking<Unit> {
-        val fake = Fake(NutritionResponse(200, nx()))
-        val c = NutritionClient(settings, fake).describe("two cups milk").single()
+    @Test fun historicalNutritionixConsumedBasisIsNotScaledTwice() {
+        val c = ProviderMappers.nutritionix(json(nx()).array("foods").first().asJsonObject, "two cups milk")
         val original = c.toEntry()
         assertEquals(240.0, original.nutrients["energy_kcal"]!!, 1e-9)
         assertEquals(488.0, original.massGrams!!, 1e-9)
@@ -111,8 +453,6 @@ class NutritionClientTest {
         assertNull(c.confidence)
         assertEquals("two cups milk", original.originalText)
         assertEquals(EntryKind.DRINK, c.kind)
-        assertEquals("POST", fake.requests.single().method)
-        assertEquals("two cups milk", json(fake.requests.single().body!!).text("text"))
         assertEquals(500.0, original.nutrients["nutritionix_attr_301"]!!, 1e-9)
     }
 
@@ -223,9 +563,10 @@ class NutritionClientTest {
     }
 
     @Test fun gatewayStatusAndSafeErrorsExposeNoCredentials() = runBlocking<Unit> {
-        val fake = Fake(NutritionResponse(200, """{"usda":{"configured":true,"enabled":true,"reason":null},"nutritionix":{"configured":true,"enabled":false,"reason":"access_entitlement"}}"""))
+        val fake = Fake(NutritionResponse(200, """{"usda":{"configured":true,"enabled":true,"reason":null},"nutritionix":{"configured":true,"enabled":true,"reason":null}}"""))
         val client = NutritionClient(settings, fake)
-        assertEquals("access_entitlement", client.status().nutritionix.reason)
+        assertEquals("free_only", client.status().nutritionix.reason)
+        assertFalse(client.status().nutritionix.enabled)
         fake.response = NutritionResponse(429, """{"error":{"code":"budget_exceeded","message":"private-device-fixture-token upstream key"}}""", 30)
         val error = expect(NutritionError.BUDGET_EXCEEDED) { client.describe("beans") }
         assertEquals(30L, error.retryAfterSeconds)
@@ -254,8 +595,8 @@ class NutritionClientTest {
         expect(NutritionError.UNAVAILABLE) { client.describe("coffee") }
         assertEquals(1, attempts)
         first.cancelAndJoin()
-        wait.complete(NutritionResponse(200, "{\"foods\":[]}"))
-        assertTrue(client.describe("coffee").isEmpty())
+        wait.complete(NutritionResponse(200, described("coffee", descriptionItem("coffee", null, "serving", matched = false))))
+        assertEquals("no_match", client.describe("coffee").single().matchStatus)
         assertEquals(2, attempts)
     }
 

@@ -1,5 +1,4 @@
 """Newleaf bounded nutrition proxy. Python 3.11+, standard library only."""
-import datetime as dt
 import hashlib
 import hmac
 import json
@@ -12,7 +11,9 @@ import socket
 import tempfile
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from fractions import Fraction
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -27,6 +28,7 @@ class GatewayError(Exception):
         super().__init__(code)
 
 MESSAGES = {
+    'free_only': 'Newleaf uses free sources only. Nutritionix is disabled.',
     'authentication': 'Device authentication failed.',
     'unconfigured': 'This nutrition source is not configured.',
     'access_entitlement': 'This nutrition source is not enabled for this account.',
@@ -42,11 +44,7 @@ MESSAGES = {
 class Config:
     device_token: str
     usda_key: str = ''
-    nutritionix_id: str = ''
-    nutritionix_key: str = ''
-    nutritionix_rights_confirmed: bool = False
     usda_hourly_limit: int = 100
-    nutritionix_daily_limit: int = 0
     device_minute_limit: int = 30
     state_file: str = '.newleaf-quota.json'
     timeout: float = 10
@@ -54,18 +52,14 @@ class Config:
     def __post_init__(self):
         if len(self.device_token) < 32 or any(not 33 <= ord(c) <= 126 for c in self.device_token):
             raise ValueError('A non-whitespace device token of at least 32 characters is required')
-        if not 1 <= self.timeout <= 30 or min(self.usda_hourly_limit, self.nutritionix_daily_limit) < 0 or not 1 <= self.device_minute_limit <= 100:
+        if not 1 <= self.timeout <= 30 or self.usda_hourly_limit < 0 or not 1 <= self.device_minute_limit <= 100:
             raise ValueError('Invalid request bounds')
 
     @classmethod
     def from_env(cls):
         return cls(device_token=os.environ.get('NEWLEAF_DEVICE_TOKEN', ''),
                    usda_key=os.environ.get('USDA_API_KEY', ''),
-                   nutritionix_id=os.environ.get('NUTRITIONIX_APP_ID', ''),
-                   nutritionix_key=os.environ.get('NUTRITIONIX_APP_KEY', ''),
-                   nutritionix_rights_confirmed=os.environ.get('NUTRITIONIX_RIGHTS_CONFIRMED') == 'true',
                    usda_hourly_limit=int(os.environ.get('USDA_HOURLY_LIMIT', '100')),
-                   nutritionix_daily_limit=int(os.environ.get('NUTRITIONIX_DAILY_LIMIT', '0')),
                    state_file=os.environ.get('NEWLEAF_QUOTA_FILE', '.newleaf-quota.json'))
 
 class NoRedirect(HTTPRedirectHandler):
@@ -110,10 +104,6 @@ def upstream(method, url, headers, body, timeout):
 # Project only fields used by adapters. Drop raw diagnostics, user echoes, images and secrets.
 USDA_FIELDS = {'fdcId', 'description', 'brandOwner', 'brandName', 'dataType', 'servingSize',
                'servingSizeUnit', 'householdServingFullText', 'foodCategory', 'marketCountry'}
-NX_FIELDS = {'food_name', 'brand_name', 'serving_qty', 'serving_unit', 'serving_weight_grams',
-             'nf_calories', 'nf_total_fat', 'nf_saturated_fat', 'nf_cholesterol', 'nf_sodium',
-             'nf_total_carbohydrate', 'nf_dietary_fiber', 'nf_sugars', 'nf_protein',
-             'nf_potassium', 'nf_p', 'nix_item_id', 'tag_id', 'ndb_no'}
 
 def primitives(item, fields):
     if not isinstance(item, dict) or any(isinstance(v, float) and not math.isfinite(v) for v in item.values()):
@@ -140,15 +130,63 @@ def usda_food(item):
         out['foodPortions'].append(p)
     return out
 
-def nx_food(item):
-    if not isinstance(item, dict) or not isinstance(item.get('food_name'), str):
-        raise GatewayError('malformed_response', 502)
-    out = primitives(item, NX_FIELDS)
-    if isinstance(item.get('tags'), dict):
-        out['tags'] = primitives(item['tags'], {'tag_id'})
-    out['full_nutrients'] = [primitives(n, {'attr_id', 'value'}) for n in item.get('full_nutrients', [])]
-    out['alt_measures'] = [primitives(n, {'measure', 'qty', 'serving_weight'}) for n in item.get('alt_measures', [])]
-    return out
+# Small syntax parser, not a language model. Never invent a serving mass/density.
+UNIT_ALIASES = {
+    'g': 'g', 'gram': 'g', 'grams': 'g', 'kg': 'kg', 'kilogram': 'kg', 'kilograms': 'kg',
+    'mg': 'mg', 'oz': 'oz', 'ounce': 'oz', 'ounces': 'oz', 'lb': 'lb', 'pound': 'lb', 'pounds': 'lb',
+    'ml': 'mL', 'milliliter': 'mL', 'milliliters': 'mL', 'l': 'L', 'liter': 'L', 'liters': 'L',
+    'fl oz': 'US fl oz', 'fluid ounce': 'US fl oz', 'fluid ounces': 'US fl oz',
+    'cup': 'cup', 'cups': 'cup', 'tbsp': 'tablespoon', 'tablespoon': 'tablespoon', 'tablespoons': 'tablespoon',
+    'tsp': 'teaspoon', 'teaspoon': 'teaspoon', 'teaspoons': 'teaspoon',
+    'serving': 'serving', 'servings': 'serving', 'slice': 'slice', 'slices': 'slice',
+    'piece': 'piece', 'pieces': 'piece', 'item': 'item', 'items': 'item',
+}
+QUANTITY = re.compile(r'^(?P<q>(?:[0-9]+ +[0-9]+/[0-9]+|[0-9]+/[0-9]+|[0-9]+(?:\.[0-9]+)?|\.[0-9]+))\s*(?P<rest>.*)$')
+WORDS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'half': .5}
+
+def description_items(text):
+    if not isinstance(text, str) or not 2 <= len(text.strip()) <= 2000 or len(text) > 2000 or any(ord(c) < 32 and c not in '\n\t' for c in text):
+        raise GatewayError('invalid_request')
+    parts = [p.strip() for p in re.split(r'[,\n]', text) if p.strip()]
+    if not 1 <= len(parts) <= 8:
+        raise GatewayError('invalid_request')
+    result = []
+    for part in parts:
+        normalized = re.sub(r'\s+', ' ', part)
+        for symbol, fraction in {'½': '1/2', '¼': '1/4', '¾': '3/4', '⅓': '1/3', '⅔': '2/3'}.items():
+            normalized = normalized.replace(symbol, ' ' + fraction).strip()
+        quantity, rest = None, normalized
+        match = QUANTITY.fullmatch(normalized)
+        if match:
+            try:
+                quantity = float(sum((Fraction(n) for n in match['q'].split()), Fraction(0)))
+            except (ValueError, ZeroDivisionError):
+                raise GatewayError('invalid_request') from None
+            rest = match['rest'].strip()
+        elif normalized.split(' ', 1)[0].lower() in WORDS:
+            word, _, rest = normalized.partition(' ')
+            quantity = float(WORDS[word.lower()])
+        elif normalized.startswith(('-', '+')):
+            raise GatewayError('invalid_request')
+        if quantity is not None and not 0 < quantity <= 1000000:
+            raise GatewayError('invalid_request')
+        unit, recognized, query = 'serving' if quantity is None else 'item', quantity is None, rest
+        if quantity is not None:
+            for alias in sorted(UNIT_ALIASES, key=len, reverse=True):
+                if rest.lower().startswith(alias + ' '):
+                    unit, recognized, query = UNIT_ALIASES[alias], True, rest[len(alias):].strip()
+                    break
+            else:
+                # An unsupported unit is retained. No gram/volume conversion is guessed.
+                tokens = rest.split(' ', 1)
+                if len(tokens) == 2:
+                    unit = tokens[0]
+                    query = rest  # ambiguous noun/adjective: preserve every search word
+        if not 2 <= len(query) <= 200 or any(ord(c) < 32 for c in query):
+            raise GatewayError('invalid_request')
+        result.append({'input_text': part, 'query': query, 'quantity_hint': quantity, 'unit_hint': unit,
+                       'quantity_estimated': True, 'unit_recognized': recognized, 'match_estimated': True})
+    return result
 
 class Service:
     def __init__(self, config, transport=upstream, clock=time.time):
@@ -158,6 +196,7 @@ class Service:
         self.blocked_until = {}
         self.minute, self.minute_count = -1, 0
         self.semaphore = threading.BoundedSemaphore(4)
+        self.upstream_slots = threading.BoundedSemaphore(4)
         # Exclusive lifetime lock prevents multiple processes sharing a quota file.
         import fcntl
         state = Path(config.state_file)
@@ -168,11 +207,9 @@ class Service:
 
     def status(self):
         c = self.config
-        nx_configured = bool(c.nutritionix_id and c.nutritionix_key)
-        nx_enabled = nx_configured and c.nutritionix_rights_confirmed and c.nutritionix_daily_limit > 0
-        return {'usda': {'configured': bool(c.usda_key), 'enabled': bool(c.usda_key) and c.usda_hourly_limit > 0, 'reason': 'unconfigured' if not c.usda_key else 'budget_exceeded' if c.usda_hourly_limit == 0 else None},
-                'nutritionix': {'configured': nx_configured, 'enabled': nx_enabled,
-                               'reason': None if nx_enabled else 'unconfigured' if not nx_configured else 'access_entitlement'}}
+        usda = {'configured': bool(c.usda_key), 'enabled': bool(c.usda_key) and c.usda_hourly_limit > 0,
+                'reason': 'unconfigured' if not c.usda_key else 'budget_exceeded' if c.usda_hourly_limit == 0 else None}
+        return {'usda': usda, 'describe': {**usda, 'mode': 'usda_assisted', 'free_only': True}}
 
     def auth(self, authorization):
         if not hmac.compare_digest(authorization, 'Bearer ' + self.config.device_token):
@@ -190,9 +227,11 @@ class Service:
             now = self.clock()
             if self.blocked_until.get(source, 0) > now:
                 raise GatewayError('rate_limited', 429, int(self.blocked_until[source] - now) + 1)
-            period = 3600 if source == 'usda' else 86400
+            if source != 'usda':
+                raise GatewayError('free_only', 403)
+            period = 3600
             window = int(now // period)
-            limit = self.config.usda_hourly_limit if source == 'usda' else self.config.nutritionix_daily_limit
+            limit = self.config.usda_hourly_limit
             path = Path(self.config.state_file)
             try:
                 state = json.loads(path.read_text()) if path.exists() else {}
@@ -214,14 +253,46 @@ class Service:
                 raise GatewayError('unavailable', 503) from None
 
     def call(self, source, method, url, headers=None, body=None):
-        self.reserve(source)  # never refund possibly billed/unknown outcomes
+        # Independent items run concurrently, but all routes share four upstream slots.
+        if source != 'usda' or method != 'GET' or not url.startswith('https://api.nal.usda.gov/fdc/v1/'):
+            raise GatewayError('free_only', 403)
+        if not self.upstream_slots.acquire(timeout=self.config.timeout):
+            raise GatewayError('unavailable', 503)
         try:
-            return self.transport(method, url, headers or {}, body, self.config.timeout)
+            self.reserve(source)  # never refund unknown outcomes
+            try:
+                return self.transport(method, url, headers or {}, body, self.config.timeout)
+            except GatewayError as error:
+                if error.code == 'rate_limited':
+                    with self.lock:
+                        self.blocked_until[source] = self.clock() + (error.retry or 60)
+                raise
+        finally:
+            self.upstream_slots.release()
+
+    def describe_item(self, item):
+        url = 'https://api.nal.usda.gov/fdc/v1/foods/search?' + urlencode({
+            'query': item['query'], 'pageSize': 5,
+            'dataType': 'Survey (FNDDS)'})
+        result = self.call('usda', 'GET', url, {'X-Api-Key': self.config.usda_key})
+        foods = result.get('foods')
+        if not isinstance(foods, list):
+            raise GatewayError('malformed_response', 502)
+        if not foods:
+            return {**item, 'food': None, 'match_status': 'no_match', 'needs_details': False}
+        food = usda_food(foods[0])
+        if not re.fullmatch(r'[1-9][0-9]{0,9}', str(food['fdcId'])):
+            raise GatewayError('malformed_response', 502)
+        url = 'https://api.nal.usda.gov/fdc/v1/food/' + str(food['fdcId'])
+        try:
+            detail = usda_food(self.call('usda', 'GET', url, {'X-Api-Key': self.config.usda_key}))
         except GatewayError as error:
-            if error.code == 'rate_limited':
-                with self.lock:
-                    self.blocked_until[source] = self.clock() + (error.retry or 60)
-            raise
+            if error.code != 'not_found':
+                raise
+            return {**item, 'food': food, 'match_status': 'provisional', 'needs_details': True}
+        if detail['fdcId'] != food['fdcId']:
+            raise GatewayError('malformed_response', 502)
+        return {**item, 'food': detail, 'match_status': 'provisional', 'needs_details': False}
 
     def dispatch(self, method, target, authorization, body=b''):
         self.auth(authorization)
@@ -245,8 +316,8 @@ class Service:
                     raise GatewayError('invalid_request')
                 if not self.config.usda_key:
                     raise GatewayError('unconfigured', 503)
-                url = 'https://api.nal.usda.gov/fdc/v1/foods/search?' + urlencode({'query': text, 'pageSize': 20, 'api_key': self.config.usda_key})
-                result = self.call('usda', 'GET', url)
+                url = 'https://api.nal.usda.gov/fdc/v1/foods/search?' + urlencode({'query': text, 'pageSize': 20})
+                result = self.call('usda', 'GET', url, {'X-Api-Key': self.config.usda_key})
                 if not isinstance(result.get('foods'), list):
                     raise GatewayError('malformed_response', 502)
                 return {'foods': [usda_food(f) for f in result['foods'][:20]]}
@@ -254,33 +325,29 @@ class Service:
             if match and method == 'GET' and not query:
                 if not self.config.usda_key:
                     raise GatewayError('unconfigured', 503)
-                url = 'https://api.nal.usda.gov/fdc/v1/food/' + match[1] + '?' + urlencode({'api_key': self.config.usda_key})
-                return usda_food(self.call('usda', 'GET', url))
-            if parsed.path == '/v1/nutritionix/describe' and method == 'POST' and not query:
+                url = 'https://api.nal.usda.gov/fdc/v1/food/' + match[1]
+                return usda_food(self.call('usda', 'GET', url, {'X-Api-Key': self.config.usda_key}))
+            if parsed.path in ('/v1/parse', '/v1/nutritionix/describe', '/v1/nutritionix/parse'):
+                raise GatewayError('free_only', 403)
+            if parsed.path == '/v1/describe' and method == 'POST' and not query:
                 try:
                     data = json.loads(body)
                 except (ValueError, UnicodeError):
                     raise GatewayError('invalid_request') from None
-                if not isinstance(data, dict) or set(data) != {'text'} or not isinstance(data['text'], str):
+                if not isinstance(data, dict) or set(data) != {'text'}:
                     raise GatewayError('invalid_request')
-                text = data['text'].strip()
-                if not 2 <= len(text) <= 2000 or any(ord(c) < 32 and c not in '\n\t' for c in text):
-                    raise GatewayError('invalid_request')
-                status = self.status()['nutritionix']
-                if not status['enabled']:
-                    raise GatewayError(status['reason'], 503 if not status['configured'] else 403)
-                digest = hashlib.sha256(text.encode()).digest()
+                items = description_items(data['text'])  # validate every item before any call
+                if not self.config.usda_key:
+                    raise GatewayError('unconfigured', 503)
+                digest = hashlib.sha256(data['text'].strip().encode()).digest()
                 with self.lock:
                     if digest in self.inflight:
                         raise GatewayError('unavailable', 409)
                     self.inflight.add(digest)
                 try:
-                    result = self.call('nutritionix', 'POST', 'https://trackapi.nutritionix.com/v2/natural/nutrients',
-                                       {'x-app-id': self.config.nutritionix_id, 'x-app-key': self.config.nutritionix_key},
-                                       {'query': text, 'num_servings': 1})
-                    if not isinstance(result.get('foods'), list) or len(result['foods']) > 100:
-                        raise GatewayError('malformed_response', 502)
-                    return {'foods': [nx_food(f) for f in result['foods']]}
+                    with ThreadPoolExecutor(max_workers=min(4, len(items))) as pool:
+                        foods = list(pool.map(self.describe_item, items))
+                    return {'mode': 'usda_assisted', 'original_text': data['text'], 'review_required': True, 'foods': foods}
                 finally:
                     with self.lock:
                         self.inflight.discard(digest)

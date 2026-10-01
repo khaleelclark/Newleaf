@@ -86,15 +86,8 @@ object JournalExports {
             composition = entry.composition.map(::sanitize))
         val sanitized = records.map(::sanitize)
         val offSubset = OpenFoodFactsExports.subset(sanitized)
-        val settings = JournalCodec.gson.toJsonTree(journal.settings.copy(gatewayToken = "")).asJsonObject
-        fun stripCredentials(objectValue: JsonObject) {
-            objectValue.keySet().toList().forEach { key ->
-                val normalized = key.lowercase().replace("_", "").replace("-", "")
-                if (normalized.contains("token") || normalized.contains("secret") || normalized.contains("credential")) objectValue.remove(key)
-                else objectValue[key].takeIf { it.isJsonObject }?.let { stripCredentials(it.asJsonObject) }
-            }
-        }
-        stripCredentials(settings)
+        val settings = JournalCodec.gson.toJsonTree(CredentialSettings.withoutCredentials(journal.settings)).asJsonObject
+        CredentialSettings.stripFields(settings)
         val summaries = sanitized.filter { it.id in selected && !it.isLibrary }.map { it.localDate }.distinct().sorted().map { Summaries.day(sanitized.filter { it.id in selected }, it) }
         val manifest = JsonObject().apply {
             addProperty("export_id", UUID.randomUUID().toString()); addProperty("generated_at", Instant.now().toString())
@@ -103,7 +96,7 @@ object JournalExports {
             addProperty("selected_count", selected.size); addProperty("context_count", context.size)
             add("context_only_ids", JournalCodec.gson.toJsonTree(context.sorted()))
             add("selected_ids", JournalCodec.gson.toJsonTree(selected.sorted()))
-            add("exclusions", JournalCodec.gson.toJsonTree(listOfNotNull("gateway credentials", "transient drafts/caches",
+            add("exclusions", JournalCodec.gson.toJsonTree(listOfNotNull("gateway and USDA credentials", "transient drafts/caches",
                 if (!options.includeNotes) "notes and original descriptions" else null, if (!options.includePhotos) "photo bytes" else null,
                 if (!options.includeLibrary) "unreferenced library" else null, if (!options.includeRecipes) "unreferenced recipes" else null)))
             add("source_attribution", JournalCodec.gson.toJsonTree(sanitized.flatMap { sources(it) }.distinct()))
@@ -111,7 +104,7 @@ object JournalExports {
         require(sanitized.flatMap { sourceReferences(it) }.all { it.exportAllowed && it.snapshotAllowed }) { "A source restriction prevents full nutrition export; resolve provider access before exporting" }
         val root = JsonObject().apply {
             addProperty("schema_version", SCHEMA_VERSION); add("manifest", manifest); add("settings", settings)
-            add("records", JournalCodec.gson.toJsonTree(sanitized)); add("extensions", journal.extensions.deepCopy())
+            add("records", JournalCodec.gson.toJsonTree(sanitized)); add("extensions", journal.extensions.deepCopy().also(CredentialSettings::stripFields))
             add("attachment_manifest", JournalCodec.gson.toJsonTree(attachmentMap.values.toList()))
             add("daily_summaries", JournalCodec.gson.toJsonTree(summaries))
             add("source_notices", JsonArray().apply { if (OpenFoodFactsExports.hasRecords(offSubset)) add(OpenFoodFactsExports.notice()) })
@@ -199,10 +192,11 @@ object JournalExports {
         require(root["schema_version"]?.asString == SCHEMA_VERSION) { "Unsupported schema version; upgrade Newleaf before restoring" }
         val manifest = requireNotNull(root.getAsJsonObject("manifest")) { "Missing manifest" }
         val entries = requireNotNull(root.getAsJsonArray("records")) { "Missing canonical records" }.map { JournalCodec.decodeEntry(it.asJsonObject) }
-        val settings = JournalCodec.decodeSettings(root.getAsJsonObject("settings")).copy(gatewayToken = "")
+        val settings = JournalCodec.decodeSettings(root.getAsJsonObject("settings").deepCopy().also(CredentialSettings::stripFields))
         val knownKeys = setOf("schema_version", "manifest", "settings", "records", "extensions", "attachment_manifest", "daily_summaries", "meals", "food_entries", "drink_entries", "feeling_checkins", "activities", "daily_steps", "weight_entries", "daily_context", "custom_foods", "favorites", "saved_meals", "recipe_versions", "source_notices", "open_food_facts_nutrition")
         val extensions = root.getAsJsonObject("extensions")?.deepCopy() ?: JsonObject()
         root.entrySet().filter { it.key !in knownKeys }.forEach { extensions.add(it.key, it.value.deepCopy()) }
+        CredentialSettings.stripFields(extensions)
         val journal = Journal(entries, settings, extensions = extensions)
         JournalValidation.journal(journal)
         val contexts = manifest.getAsJsonArray("context_only_ids").map { it.asString }.toSet()
@@ -359,6 +353,6 @@ object JournalExports {
             line("```json"); line(JournalCodec.pretty.toJson(p.document["open_food_facts_nutrition"])); line("```")
         }
         line("Canonical units: grams, mL, kg, meters, seconds, kcal, sodium mg. US fl oz = 29.5735295625 mL; weight oz = 28.349523125 g.")
-        line("Gateway credentials and transient drafts/caches are excluded. Other exclusions: ${p.document["manifest"].asJsonObject["exclusions"]}.")
+        line("Gateway and USDA credentials and transient drafts/caches are excluded. Other exclusions: ${p.document["manifest"].asJsonObject["exclusions"]}.")
     }
 }

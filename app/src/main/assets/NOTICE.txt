@@ -1,5 +1,6 @@
 Newleaf uses AndroidX (Core, Activity, Lifecycle, Compose, Room, SQLite), Kotlin,
-kotlinx.coroutines, Gson, ZXing Android Embedded, and ZXing core.
+kotlinx.coroutines, Gson, ZXing Android Embedded, ZXing core, and Guava
+ListenableFuture (Google Guava).
 These components are distributed under Apache License 2.0.
 The license text is included as APACHE-2.0.txt.
 
@@ -9,12 +10,23 @@ Coroutines: https://github.com/Kotlin/kotlinx.coroutines
 Gson: https://github.com/google/gson
 ZXing Android Embedded: https://github.com/journeyapps/zxing-android-embedded
 ZXing: https://github.com/zxing/zxing
+Guava ListenableFuture: Copyright The Guava Authors, Google LLC.
+https://github.com/google/guava
+Distributed under Apache License 2.0; see APACHE-2.0.txt.
 
 Nutrition data sources have separate terms and attribution:
 USDA FoodData Central: https://fdc.nal.usda.gov/
 Open Food Facts: https://world.openfoodfacts.org/
-Nutritionix: https://www.nutritionix.com/
 
 Newleaf journal data stays on your device unless you explicitly save/share an export.
-Online food searches and meal descriptions are sent only to the selected nutrition
-service. The gateway receives no body weight, feelings, photos, or diary notes.
+Open Food Facts barcode lookup is free and requires no account. USDA search and
+Describe suggestions use a free personal USDA API key; signup is required, but
+hosting is not. The key is protected on the phone with Android Keystore and
+excluded from exports and backups. An optional gateway can be used when the
+personal key is blank; shared provider keys stay on that gateway.
+No subscription or paid nutrition service is used.
+Online Search and Describe food queries go directly to USDA with the personal
+key, or through the optional gateway when no personal key is set. Barcode
+lookup sends only the code to Open Food Facts. Suggested matches and inferred
+portions require review; missing nutrition stays unknown. The gateway receives
+no body weight, feelings, photos, or diary notes.

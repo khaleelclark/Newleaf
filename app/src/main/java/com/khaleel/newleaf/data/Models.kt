@@ -86,7 +86,8 @@ data class AppSettings(
     val theme: String = "system", val waterGoalMl: Double? = null,
     val gatewayUrl: String = "", val gatewayToken: String = "", val onboardingComplete: Boolean = false,
     val locale: String = "en-US", val region: String = "US", val remindersEnabled: Boolean = false,
-    val extensions: JsonObject = JsonObject()
+    val extensions: JsonObject = JsonObject(),
+    val usdaApiKey: String = ""
 ) {
     override fun toString(): String = "AppSettings(weightUnit=$weightUnit, volumeUnit=$volumeUnit, distanceUnit=$distanceUnit, theme=$theme, onboardingComplete=$onboardingComplete)"
 }
