@@ -1,105 +1,44 @@
 # Nutrition integration specification
 
-Documentation checked October 1, 2026. No provider credentials have been requested or used, and no subscriptions or live integration tests have been performed.
+Updated October 1, 2026 for the owner's free-only requirement. USDA and Open Food Facts supply nutrition; Describe meal provides USDA-assisted review. The parent's two live USDA verification calls and one Open Food Facts production response are recorded in release validation. No paid account, commercial call, or hosted deployment was created.
 
-## 1. Three-source requirement
+## Sources and access
 
-Newleaf must include all three source categories requested by the owner:
+**USDA FoodData Central** supplies general/branded food search and detail. Register for a free data.gov key. USDA data are public domain/CC0; the documented default allowance is 1,000 requests/hour/IP. Coverage, portion definitions and nutrient completeness vary. Preserve fdcId, preparation, declared nutrient basis, retrieval time and missingness. [Official API guide](https://fdc.nal.usda.gov/api-guide/)
 
-1. USDA FoodData Central for general food search and nutrient detail.
-2. Open Food Facts for packaged food/drink barcode lookup.
-3. A commercial meal-description parser, proposed as Nutritionix.
+**Open Food Facts** supplies public packaged-food/drink barcode lookup without a user account or key. Requests identify Newleaf with a custom User-Agent. Data are community contributed and may be missing or incomplete. Database, content and image licensing differ; attribution and an independently extractable licensed nutrition subset accompany exports. No diary information is publicly contributed. [Official API documentation](https://openfoodfacts.github.io/openfoodfacts-server/api/)
 
-Nutritionix and fatsecret were presented together as the third category during planning. This specification selects Nutritionix as a proposed default and preserves fatsecret as an alternative if access, pricing, coverage, or export rights fit better. Integrating both commercial services is not currently required. Do not substitute providers silently; document any final choice before implementation.
+**Nutritionix is disabled.** Its developer portal announces the withdrawal of public free access; limited trials do not meet the owner's free-only requirement. Legacy credentials must not activate a commercial endpoint. No commercial parser is required. [Official developer announcement](https://developer.nutritionix.com/)
 
-## 2. Provider roles and verified capabilities
+## User actions and review
 
-### USDA FoodData Central
+| Action | Source and behavior | Fallback |
+| --- | --- | --- |
+| Food search | Local saved items plus explicit USDA query/details | Manual entry with unknown nutrition |
+| Barcode | One Open Food Facts lookup per captured code | Enter/search manually, retaining barcode |
+| Describe meal | Bounded comma/newline item list; optional leading quantity, fraction and unit; provisional USDA matches | Keep original description and continue manually |
+| Repeat or recipe | Local immutable reviewed snapshots | Works offline |
 
-Provides food search and food detail, covering several general and branded food datasets. Requests require a data.gov API key; the documentation requires keeping it private. Data is published under CC0/public domain. The documented default limit is 1,000 requests per hour per IP, with a temporary block after exceeding it. [Official API guide](https://fdc.nal.usda.gov/api-guide/)
+Describe accepts at most eight food/drink fragments. It is deterministic assisted search, not unrestricted language understanding or AI analysis. Original text, supplied quantities and inferred amounts remain distinguishable. All matches require review; editing a suggestion never silently saves it. USDA keyword similarity is not proof of identity. A missing serving conversion leaves nutrition unknown rather than inventing a gram or fluid-ounce density.
 
-Planned use: search ordinary foods, retrieve selected details, and normalize preparation/portion information. Nutrition and portion mappings need fixture verification; do not assume every food has every nutrient or usable serving weight. Reference ID is fdcId. Newleaf includes source attribution in details and exports.
+Food detail retains description-derived portion hints while obtaining the selected source's nutrient basis. Measured quantities scale only against compatible declared units/weights. A consumed serving must not be multiplied again as though its values were per 100 g. Unsupported or partial fields stay explicitly unknown. Local overrides preserve attribution and are never uploaded; historical journal entries do not refresh themselves from source data.
 
-### Open Food Facts
+## Personal credentials and optional gateway
 
-Provides product nutrition/ingredients and barcode-based product lookup. Its data is community contributed and may be incomplete. Documentation identifies separate database/content/image licenses, requires a custom User-Agent, and sets endpoint-specific limits. It recommends current v3 for new product integrations; product lookup and full-text search are distinct capabilities. [Official API documentation](https://openfoodfacts.github.io/openfoodfacts-server/api/)
+The primary setup is a personal free USDA key entered on the phone. Store it in a dedicated Keystore-protected credential slot, separately from an optional gateway token. Never put it in plaintext journal metadata, settings exports, JSON/CSV/Markdown, backups, diagnostics, APK assets or Git. Backup restoration preserves the installation's current credentials and cannot import credentials from a file.
 
-Planned use: barcode-first packaged food and drink matching; preserve the scanned code and product identity. Use a pinned supported lookup version after implementation-time verification. Do not fire a barcode request on every camera frame. Missing records or nutrients lead to editable custom entry. No automatic public contribution of the owner's meals/photos.
+Send the key only as the `X-Api-Key` header to the official HTTPS FDC origin, never in a URL. Disable redirects and automatic retries. Search sends the explicit food query; details send a selected fdcId; descriptions send food fragments as bounded searches. Open Food Facts receives only a barcode. Neither path sends body weight, feelings, activities, photos or the whole journal. Third-party retention is governed by that service; do not claim it retains nothing.
 
-### Nutritionix, proposed third provider
+An authenticated HTTPS gateway remains optional for server-managed free USDA access. Shared deployment keys stay on the server; the phone protects its device token. The gateway contains no diary database, bounds input/response size, sanitizes errors, enforces persistent request ceilings and does not log food-query payloads by default. Public deployment is outside this handoff; personal-key mode requires no server or hosting fee.
 
-Its documented natural-language nutrients endpoint is `POST /v2/natural/nutrients` on `trackapi.nutritionix.com`. Authentication uses app ID/key. Responses include foods, serving quantities/units/weights, and nutrients; the API has options for time context and branded foods. [Official natural-language documentation](https://docx.syndigo.com/developers/docs/natural-language-for-nutrients)
+## Reliability and quotas
 
-Planned use: explicit meal-description analysis. Adapter output separates original phrases, matches, quantities, and inference status. The consumed nutrient basis must be verified before rescaling. App-selected event time wins over interpreted relative language unless the user explicitly accepts a suggested time. Access entitlement, current prices, and storage/export permission remain unverified account-specific dependencies.
+Use bounded timeouts/response sizes and explicit actions, cancel abandoned work, and retain drafts on authentication, quota, network or malformed-response errors. Do not automatically repeat calls or follow redirects with credentials. Quota errors offer a user-initiated retry later; manual logging, favorites and exports continue offline. No billing credentials, commercial endpoint activation or paid fallback exists.
 
-### fatsecret alternative
+Preserve separate source identities and nutrient evidence rather than filling gaps from similarly named foods. Source-derived records carry reference basis, quantity, license/attribution and confidence only when actually supplied; never invent a confidence score. Export source nutrition alongside independently licensed Open Food Facts reuse data without exposing the private diary in that subset. Private user photos are distinct from provider product images.
 
-fatsecret documents meal-description processing and image recognition. Voice input would require transcription before parsing. Its language and photo capabilities are optional usage-billed add-ons with a trial, and pricing details are supplied through its account dashboard. [Official feature and pricing explanation](https://platform.fatsecret.com/features/image-recognition-and-nlp)
+## Verification boundaries
 
-If selected, it fills the third category rather than adding a parallel fourth mandatory service. Photo recognition is still deferred regardless of provider availability. Retention/export terms and actual costs must be confirmed for the chosen account.
+Fixtures must cover direct-header authentication, allowed HTTPS origin, blocked redirects, credentials excluded from URL/errors/exports, disabled commercial access, quota/error handling, bounded description fragments, quantities/fractions, retained detail hints, compatible scaling and unknown units. Replay real public USDA/OFF responses through the same mappers, without fixtures containing credentials. Device tests verify protected credential persistence and merge/replace preservation.
 
-## 3. Routing and result behavior
-
-| User action | Local behavior | Remote behavior | Failure fallback |
-| --- | --- | --- | --- |
-| Food search | favorites, recent foods, custom foods | USDA search/details | use local results or manual entry |
-| Barcode | cached permitted product snapshot | Open Food Facts product lookup | type/search/create item with barcode preserved |
-| Describe meal | retain local draft/text | Nutritionix parser, proposed | continue manually without discarding text |
-| Repeat favorite | copy local saved snapshot | none required | works offline within resolved retention policy |
-| Recipe logging | use local recipe version | none unless adding a new ingredient | save incomplete nutrition explicitly |
-
-Sources complement each other rather than making every interaction call all three. Online search must not wait for all sources to return. Do not assert a USDA keyword match is an exact barcode product match. A later secondary barcode provider can be considered only with a documented capability/access check.
-
-Ranking favors exact identifiers, brand/preparation, appropriate region, usable serving data, and known nutrient coverage. Local favorites receive priority. Results may be grouped when identities clearly match, but source records remain separate; do not stitch one food's calories to another food's sodium merely because their names resemble each other.
-
-User edits to a provider result create a local override with attribution intact. The override is not uploaded to the provider. Providers must not update historical diary entries in the background.
-
-## 4. Normalized adapter contract
-
-Each adapter returns:
-
-- Namespaced provider/item identifiers, barcode if present, name/brand/preparation, region.
-- Serving definitions, nutrient basis, nutrient codes/units/values, missingness, and retrieval time.
-- Original input fragment and whether each portion was supplied or inferred, when available.
-- Attribution, license/contract identifier, permitted persistence/export flags and cache expiry.
-- Match status and any supported confidence metadata; do not invent numeric confidence when the provider does not supply it.
-- Structured failure category: no match, incomplete data, unavailable, rate limited, authentication, access entitlement, malformed response.
-
-These fields are proposed Newleaf requirements; provider documentation does not guarantee every field exists. Missing adapter fields remain explicit. The gateway and mobile adapter must reject an unknown nutrient basis instead of guessing.
-
-## 5. Credentials and a small nutrition gateway
-
-Proposed deployment: the phone calls a small authenticated gateway for keyed USDA/commercial requests. Provider credentials stay on the server, out of the APK, source control, exported files, and diagnostic logs. Open Food Facts can be accessed directly with an identifying User-Agent if the final architecture permits it; rate limits and licenses still apply.
-
-The gateway has no diary database and does not receive body weight, feelings, activity, personal notes, photos, or the full journal. It receives food queries, identifiers, and explicit meal-description text. Provision a device credential for the owner's installation; protect it on the phone and provide a rotation path. A personal app does not require public signup, but gateway requests still need authentication, request bounds, and quota control.
-
-Use TLS, redacted logs, no food-query payload logging by default, and short-lived processing. Record the selected providers' actual retention policies before making any “nothing retained” claim; gateway behavior cannot control third-party retention. The online feature explanation identifies the recipients.
-
-Gateway hosting is a proposal, not an authorized deployment. Select location/provider, recurring-cost ceiling, and operational ownership during implementation planning. If gateway hosting is declined, revisit the credential design; embedding reusable secret keys in the APK is not an acceptable default.
-
-## 6. Reliability and cost control
-
-Provider calls have bounded timeouts and cancel when a draft/action is abandoned. Search can retry transient read failures with a bounded backoff; rate-limited calls honor Retry-After and quota budgets. A meal-description POST may be billed; do not automatically repeat it unless provider idempotency/cost semantics are confirmed. Retry is an explicit user action otherwise, with the existing draft retained.
-
-Cache only fields/durations permitted by the provider. Distinguish catalog cache, per-entry nutrition snapshots, and full-diary backup rights. A cache expiry must not silently erase journal nutrition; if the provider does not permit durable snapshots, it is unsuitable for Newleaf's required full-history exports without another arrangement.
-
-Use local favorites first, explicit Analyze actions, duplicate in-flight request suppression, endpoint limits, and a configurable commercial-use ceiling. Reaching a ceiling disables that online action gracefully, while local logging and exports remain usable. Exact limits/prices are configuration established from the selected account, not values guessed in this spec.
-
-## 7. Export and reuse decision record
-
-Before selecting a commercial plan or final export implementation, record evidence for:
-
-1. Displaying matched nutrition and showing attribution.
-2. Retaining nutrition in a user's historical journal and favorites/recipes.
-3. Retaining referenced provider identifiers and derivative calculations.
-4. Exporting nutrition in JSON, CSV, Markdown, backups, and user-directed AI analysis.
-5. Storing/displaying/exporting product images separately from user photos.
-6. Gateway caching, offline use, retention durations, and deletion requirements.
-
-Review the applicable Open Food Facts reuse terms as well. This document identifies requirements, not a completed legal determination. Keeping attribution and separating provider catalogs from personal journal data does not by itself establish compliance.
-
-**Release gate:** the full-data export requirement must be compatible with the selected services. If a restriction prevents it, resolve access or provider choice with the owner; do not silently omit data and label the export complete. The user's journal and manual logging remain independent of provider availability.
-
-## 8. Verification needed later
-
-Use permitted fixtures/live calls to test a generic cooked food, packaged beverage, missing barcode, incomplete nutrition, recipe ingredient, and mixed food/drink description. Confirm exact scaling, food identity, region, error handling, attribution, cache behavior, and actual account charges. Document coverage misses instead of claiming universal food recognition.
+A successful host API call proves the provided key and that response, not Android physical-phone networking, product coverage or camera behavior. Record actual release/device evidence and remaining physical S25 Ultra checks in `releases/VALIDATION.md`.

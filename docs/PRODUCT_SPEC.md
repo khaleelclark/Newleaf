@@ -24,9 +24,9 @@ Success means the owner can log an ordinary meal quickly, reuse regular foods an
 | Trends | Descriptive charts with coverage indicators and no causal claims |
 | Data portability | JSON, CSV bundle, Markdown, optional attachments, backup and restore |
 | Device | Light/dark custom design, accessibility, offline journal, signed Android delivery |
-| Sources | USDA, Open Food Facts, commercial natural-language provider |
+| Sources | Free USDA search/details and assisted description lookup; Open Food Facts barcode lookup |
 
-The first release includes all three source categories. Internal milestones may deliver them sequentially, but a partial milestone is not the complete requested release. Commercial access may gate one feature; it cannot be silently replaced by manual entry and described as finished.
+The owner's October 1 free-only requirement governs this release. Food search and multi-item description review use USDA; packaged-product barcode lookup uses Open Food Facts. Nutritionix's public free tier has been withdrawn, so no commercial parser is enabled. Describe provides provisional USDA matches and explicit quantity/unit hints for confirmation; it does not promise unrestricted natural-language understanding. No subscription or paid hosting is required: the owner's free USDA key can be entered on the phone, with an authenticated gateway remaining optional.
 
 ## 3. Meals and food
 

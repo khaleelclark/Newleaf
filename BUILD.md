@@ -34,9 +34,9 @@ The installable signed APK, checksum, public signing details, mapping file and v
 
 ## Nutrition service
 
-Read [gateway setup](gateway/README.md) for the implemented API, local tests, environment variables, and deployment requirements. Never put USDA or Nutritionix keys into the Android app or a committed configuration file. The app needs only the gateway address and its device token, entered in Settings.
+Open Food Facts product lookup is public and requires no personal account/key. For free USDA search, details and assisted descriptions, enter a personal data.gov API key in the installed app's Settings. It is encrypted with Android Keystore protection and excluded from journal exports/backups. Never embed a key in an APK, committed file, source archive or diagnostic log.
 
-Keyed online features are not operational until an authorized gateway and provider accounts are configured. Open Food Facts barcode lookup uses its public product endpoint independently. No paid subscription or external deployment is part of a local build.
+An authenticated HTTPS USDA gateway is an optional alternative for server-managed credentials. Read [gateway setup](gateway/README.md) for local tests and a secrets-free environment example. Shared server keys stay in its private environment; the phone stores only its device token. No deployment or subscription is required for personal-key mode. Nutritionix is disabled, including when legacy commercial credentials exist.
 
 ## Source packages
 

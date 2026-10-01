@@ -6,7 +6,7 @@ Newleaf is a personal Android journal for meals, drinks, activity, body weight, 
 
 ## Project status
 
-The Android implementation and signed release candidate are present. A specialist team built the Android experience, journal/export layer, and three nutrition adapters. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; a compiled adapter does not mean a hosted gateway or keyed account is provisioned.
+The Android implementation and signed release candidate are present. A specialist team built the Android experience, journal/export layer, and free nutrition lookup. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; final free-only build verification is in progress.
 
 Project location: `/home/phoenix/khaleel/Newleaf`.
 
@@ -19,7 +19,7 @@ Primary device: Samsung Galaxy S25 Ultra. Handoff files are in `releases/`; see 
 | [Product specification](docs/PRODUCT_SPEC.md) | Scope, features, daily behavior, and defaults |
 | [Experience and design](docs/EXPERIENCE.md) | Navigation, screen layouts, logging flows, accessibility, visual direction |
 | [Data and exports](docs/DATA_AND_EXPORTS.md) | Records, units, nutrition calculations, export formats, backup and restore |
-| [Nutrition integrations](docs/NUTRITION_INTEGRATIONS.md) | Three source categories, provider routing, costs, privacy, dependencies |
+| [Nutrition integrations](docs/NUTRITION_INTEGRATIONS.md) | Free USDA/OFF access, assisted descriptions, privacy, quotas, licensing |
 | [Delivery and acceptance](docs/DELIVERY_AND_ACCEPTANCE.md) | Proposed architecture, implementation sequence, acceptance scenarios, eventual handoff |
 
 The product document sets scope; the other documents define the behavior needed to deliver it. If a later revision changes scope, update the linked documents together.
@@ -29,7 +29,7 @@ The product document sets scope; the other documents define the behavior needed 
 - Name: Newleaf, expressing a fresh start and lifestyle change.
 - Fast meal, food, drink, and activity logging; feelings after meals; body weight and flexible portions.
 - Food search, barcode scanning, meal descriptions, saved meals, and reusable recipes.
-- All three nutrition source categories from the discussion: USDA FoodData Central, Open Food Facts, and a commercial natural-language service.
+- Free-only nutrition: USDA FoodData Central search/details and assisted descriptions, plus Open Food Facts barcode lookup.
 - A clean custom visual identity rather than the standard Material appearance.
 - Complete exports for spreadsheets and AI analysis, with original context and data quality information.
 - Android delivery for the owner's S25 Ultra.
@@ -37,7 +37,6 @@ The product document sets scope; the other documents define the behavior needed 
 
 ## Proposed defaults, open for revision
 
-- Third provider: Nutritionix; fatsecret remains an evaluated alternative, not a fourth mandatory integration. The earlier discussion grouped these two under one source category.
 - Native Android in Kotlin with a custom Compose design system and local storage.
 - Single user, no mandatory diary account, local journal by default.
 - US customary display units initially: lb, US fl oz, mi; g also available for food weighing.
@@ -47,14 +46,11 @@ The product document sets scope; the other documents define the behavior needed 
 
 ## Remaining external setup
 
-These must be resolved before claiming all three live sources and physical-device acceptance:
+Open Food Facts is free and needs no user account or key for product lookup. USDA is free with a data.gov API key; enter your personal key in Settings → Nutrition sources. Newleaf protects it locally and excludes it from exports/backups. A hosted gateway is optional, so online nutrition does not require paid hosting.
 
-1. Third-provider account access, pricing, and permission to retain nutrition in journal records, backups, and AI exports.
-2. USDA API access and a configured gateway. Open Food Facts uses its public service with attribution and an independently licensed nutrition subset in exports.
-3. Hosting choice and spending limit for a small nutrition gateway that protects provider credentials.
-4. Actual S25 Ultra installation and usability. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
+The owner's USDA key passed two read-only official API calls, for search and details. The key is not embedded in the APK. Final free-only release validation and actual S25 Ultra installation/usability remain to be completed. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
 
-Development is authorized. Paid plans, external account registration, and public gateway deployment require the owner's concrete choices. No schedule or budget estimate is committed. See [build instructions](BUILD.md) and the eventual `releases/` handoff for installation and validation.
+Nutritionix's public free tier was withdrawn, so that provider is disabled. Describe meal uses bounded, reviewed USDA matches rather than a paid natural-language service. No subscription, paid account, or public gateway deployment is part of this release.
 
 ## Version control
 
