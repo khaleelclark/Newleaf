@@ -1,0 +1,16 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+*.jks
+*.keystore
+*.env
+gateway/.env
+__pycache__/
+*.pyc
+releases/*-unsigned.apk
+releases/*.apk
+releases/*-source.zip
+gateway/.newleaf-quota.json*

@@ -1,0 +1,20 @@
+Newleaf uses AndroidX (Core, Activity, Lifecycle, Compose, Room, SQLite), Kotlin,
+kotlinx.coroutines, Gson, ZXing Android Embedded, and ZXing core.
+These components are distributed under Apache License 2.0.
+The license text is included as APACHE-2.0.txt.
+
+AndroidX: https://android.googlesource.com/platform/frameworks/support/
+Kotlin: https://github.com/JetBrains/kotlin
+Coroutines: https://github.com/Kotlin/kotlinx.coroutines
+Gson: https://github.com/google/gson
+ZXing Android Embedded: https://github.com/journeyapps/zxing-android-embedded
+ZXing: https://github.com/zxing/zxing
+
+Nutrition data sources have separate terms and attribution:
+USDA FoodData Central: https://fdc.nal.usda.gov/
+Open Food Facts: https://world.openfoodfacts.org/
+Nutritionix: https://www.nutritionix.com/
+
+Newleaf journal data stays on your device unless you explicitly save/share an export.
+Online food searches and meal descriptions are sent only to the selected nutrition
+service. The gateway receives no body weight, feelings, photos, or diary notes.
