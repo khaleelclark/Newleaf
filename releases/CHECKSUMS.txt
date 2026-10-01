@@ -1,5 +1,5 @@
 df323a2e0aac9f15ad769c67368795da14f8438b0b00a3f34c056f685c5b8eae  releases/Newleaf-0.1.0.apk
-a945dd5ed8b17f752302b322f137c62975169f1e74db569bb16c4aa81a4ad27e  releases/Newleaf-0.1.0-source.zip
+c9579751083c865cc93cf35d3bb19cd0822082e105f4adfd88569cbaea33c8dd  releases/Newleaf-0.1.0-source.zip
 a58b4ce61550c23fe8401a41439e20333c1464cf189d63c44370b2a3737e4db2  releases/samples/README.md
 fc3c3f905a05fc2cffcb644c580cf04a96501f635d95301db90b151e9f1e656b  releases/samples/example-backup.zip
 e3f20129d5e0c2cdbbc4dbc8a5fe870d953c01e1b5ddb3e1fab0ed8bc80c1a9a  releases/samples/example-journal.json
