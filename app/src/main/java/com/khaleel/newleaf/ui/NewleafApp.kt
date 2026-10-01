@@ -12,6 +12,9 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +36,7 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
     val scope=rememberCoroutineScope();val snackbar=remember { SnackbarHostState() };val gson=remember { Gson() }
     var loaded by remember { mutableStateOf(false) };var loadError by remember{mutableStateOf<String?>(null)};var tab by rememberSaveable { mutableStateOf("Today") }
     var date by remember { mutableStateOf(LocalDate.now()) };var screen by rememberSaveable { mutableStateOf<String?>(null) }
+    var portabilityOrigin by remember { mutableStateOf<String?>(null) }
     var draftKey by rememberSaveable{mutableStateOf("editor")}
     var draft by remember { mutableStateOf<EditorDraft?>(null) };var detail by remember { mutableStateOf<Entry?>(null) }
     var busy by remember { mutableStateOf(false) };var editorError by remember{mutableStateOf<String?>(null)};var deleteTarget by remember { mutableStateOf<Entry?>(null) }
@@ -91,7 +95,7 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
             Column(Modifier.background(MaterialTheme.colorScheme.background).navigationBarsPadding().padding(horizontal=20.dp,vertical=10.dp)) {
                 Action("+  Log your day",Modifier.fillMaxWidth(),primary=true){screen="log"}
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
-                    listOf("Today","History","Trends").forEach { label->Box(Modifier.weight(1f).heightIn(min=52.dp).clickable {tab=label;if(label=="Today")date=LocalDate.now()}.padding(vertical=12.dp),contentAlignment=Alignment.Center){Text(label,color=if(tab==label)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.labelLarge)} }
+                    listOf("Today","History","Trends").forEach { label->Box(Modifier.weight(1f).heightIn(min=52.dp).semantics{selected=tab==label}.clickable(role=Role.Tab) {tab=label;if(label=="Today")date=LocalDate.now()}.padding(vertical=12.dp),contentAlignment=Alignment.Center){Text(label,color=if(tab==label)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.labelLarge)} }
                 }
             }
         }) { padding->
@@ -104,19 +108,25 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
                 if(tab=="Trends")TrendsScreen(journal)
                 else JournalScreen(journal,if(tab=="Today")LocalDate.now() else date,tab=="History",busy,
                     onDate={date=it;tab=if(it==LocalDate.now())"Today" else "History"},onWater=::quickWater,onEntry={detail=it;screen="detail"},
-                    onSteps={open(EntryKind.STEPS)},onNote={val existing=journal.entries.find{it.kind==EntryKind.NOTE && it.localDate==(if(tab=="Today")LocalDate.now()else date).toString()};if(existing!=null)edit(existing)else open(EntryKind.NOTE)},onExport={screen="export"})
+                    onSteps={open(EntryKind.STEPS)},onNote={val existing=journal.entries.find{it.kind==EntryKind.NOTE && it.localDate==(if(tab=="Today")LocalDate.now()else date).toString()};if(existing!=null)edit(existing)else open(EntryKind.NOTE)},onExport={portabilityOrigin=null;screen="export"})
             }
         }
         if(loaded && !journal.settings.onboardingComplete)WelcomeSheet(journal.settings){settings->scope.launch{try{repository.saveSettings(settings.copy(onboardingComplete=true))}catch(e:Exception){notify(e.message ?: "Settings could not be saved")}}}
         when(screen) {
             "log"->ModalBottomSheet(sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),onDismissRequest={screen=null},containerColor=MaterialTheme.colorScheme.background){Column(Modifier.padding(horizontal=22.dp).navigationBarsPadding().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){
                 Section("A little record of your day", "Log what matters. Details can come later.")
-                journal.drafts.filterKeys{it=="editor" || it.startsWith("editor:")}.forEach { (key,saved)->
-                    val restored=runCatching{gson.fromJson(saved,EditorDraft::class.java)}.getOrNull()
-                    if(restored!=null)Action("Continue ${restored.name.ifBlank{kindName(restored.kind).lowercase()}} draft",Modifier.fillMaxWidth(),primary=true){draftKey=key;draft=restored;screen="editor"}
+                listOf(EntryKind.FOOD,EntryKind.DRINK,EntryKind.ACTIVITY).forEach{kind->Action(kindName(kind),Modifier.fillMaxWidth(),primary=true){open(kind)}}
+                Disclosure("More ways to log") {
+                    listOf(EntryKind.MEAL,EntryKind.WEIGHT,EntryKind.STEPS,EntryKind.CHECKIN,EntryKind.NOTE).forEach{kind->Action(kindName(kind),Modifier.fillMaxWidth()){open(kind)}}
                 }
-                listOf(EntryKind.MEAL,EntryKind.FOOD,EntryKind.DRINK,EntryKind.ACTIVITY,EntryKind.WEIGHT,EntryKind.STEPS,EntryKind.CHECKIN,EntryKind.NOTE).forEach{kind->Action(kindName(kind),Modifier.fillMaxWidth()){open(kind)}}
-                if(journal.drafts.keys.any{it=="editor" || it.startsWith("editor:")})TextButton(onClick={scope.launch{journal.drafts.keys.filter{it=="editor" || it.startsWith("editor:")}.forEach{repository.clearDraft(it)};draft=null;notify("Drafts discarded")}}){Text("Discard saved drafts")}
+                val savedDrafts=journal.drafts.filterKeys{it=="editor" || it.startsWith("editor:")}
+                if(savedDrafts.isNotEmpty())Disclosure("Saved drafts") {
+                    savedDrafts.forEach { (key,saved)->
+                        val restored=runCatching{gson.fromJson(saved,EditorDraft::class.java)}.getOrNull()
+                        if(restored!=null)Action("Continue ${restored.name.ifBlank{kindName(restored.kind).lowercase()}} draft",Modifier.fillMaxWidth()){draftKey=key;draft=restored;screen="editor"}
+                    }
+                    TextButton(onClick={scope.launch{savedDrafts.keys.forEach{repository.clearDraft(it)};draft=null;notify("Drafts discarded")}}){Text("Discard saved drafts")}
+                }
                 Spacer(Modifier.height(24.dp))
             }}
             "editor"->draft?.let {current->EntryEditor(current,journal,busy,{draft=it;editorError=null},::save,{screen=null},editorError)}
@@ -137,8 +147,8 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
                 }
             })
             "recipePortion"->detail?.let {recipe->RecipePortionSheet(recipe,date,journal.settings,onClose={screen="library"}){entry->draftKey="editor:${UUID.randomUUID()}";draft=EditorDraft.edit(entry,journal.entries,journal.settings).copy(isNew=true);screen="editor"}}
-            "settings"->SettingsSheet(journal.settings,onClose={screen=null},onSave={settings->scope.launch{try{repository.saveSettings(settings);screen=null;notify("Preferences saved")}catch(e:Exception){notify(e.message ?: "Preferences could not be saved")}}},onExport={screen="export"},onBackup={screen="backup"},onRestore={screen="restore"})
-            "export","backup","restore"->PortabilitySheet(journal,repository,screen ?: "export",date,onClose={screen=null},onMessage=::notify)
+            "settings"->SettingsSheet(journal.settings,onClose={screen=null},onSave={settings->scope.launch{try{repository.saveSettings(settings);screen=null;notify("Preferences saved")}catch(e:Exception){notify(e.message ?: "Preferences could not be saved")}}},onExport={portabilityOrigin="settings";screen="export"},onBackup={portabilityOrigin="settings";screen="backup"},onRestore={portabilityOrigin="settings";screen="restore"})
+            "export","backup","restore"->PortabilitySheet(journal,repository,screen ?: "export",date,onClose={screen=portabilityOrigin},onMessage=::notify)
         }
         deleteTarget?.let {target->AlertDialog(onDismissRequest={deleteTarget=null},title={Text("Delete ${target.name}?")},text={Column{
             Text("This removes the record from your journal. Undo will be available.")
@@ -160,17 +170,22 @@ private fun JournalScreen(journal:Journal,date:LocalDate,history:Boolean,busy:Bo
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column{Text(if(history)"Your journal" else "Today",style=MaterialTheme.typography.headlineLarge);Caption(date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")))};TextButton(onClick={DatePickerDialog(context,{_,year,month,day->onDate(LocalDate.of(year,month+1,day))},date.year,date.monthValue-1,date.dayOfMonth).show()}){Text("Choose date")}}
         if(history){Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action("← Previous",Modifier.weight(1f)){onDate(date.minusDays(1))};Action("Next →",Modifier.weight(1f)){onDate(date.plusDays(1))}};Field("Search names and notes",query,{query=it});Choices(listOf("All","Meal","Food","Drink","Activity","Weight","Steps","Check-in","Daily note"),filter){filter=it};Action("Export journal",onClick=onExport)}
-        Panel(Modifier.fillMaxWidth()) {Caption("KNOWN LOGGED CALORIES");Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(calories?.knownSum?.let{number(it)} ?: "—",style=MaterialTheme.typography.headlineLarge);Caption("kcal",Modifier.padding(bottom=5.dp))};Caption(if(calories?.totalContributors==0 || calories==null)"No food or drink nutrition logged" else "${calories.knownContributors}/${calories.totalContributors} entries with calories · ${calories.partialContributors} partial snapshots · ${if(calories.completeness==Completeness.PARTIAL)"partial nutrition" else "known nutrition"}")}
+        Panel(Modifier.fillMaxWidth()) {
+            Caption("Logged calories")
+            Text(calories?.knownSum?.let{"${number(it)} kcal"} ?: "Unknown",style=MaterialTheme.typography.titleLarge)
+            Caption(if(calories==null || calories.totalContributors==0)"Add food or a drink to begin"else if(calories.completeness==Completeness.PARTIAL)"Some nutrition is unknown"else"Known nutrition")
+            if(calories!=null && calories.totalContributors>0)Disclosure("Nutrition coverage") {Caption("${calories.knownContributors}/${calories.totalContributors} entries with calories · ${calories.partialContributors} partial snapshots. Unknown values are never counted as zero.")}
+        }
         Row(horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth()){
             Panel(Modifier.weight(1f)){Caption("WATER");Text(volumeLabel(summary.waterMl,journal.settings).replace("Unknown","—"),style=MaterialTheme.typography.titleMedium);journal.settings.waterGoalMl?.let{goal->Caption("Goal ${volumeLabel(goal,journal.settings)}");LinearProgressIndicator(progress={(summary.waterMl ?: 0.0).div(goal).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth())}}
             Panel(Modifier.weight(1f).clickable(onClick=onSteps)){Caption("DAILY STEPS");Text(summary.steps?.toString() ?: "Add total",style=MaterialTheme.typography.titleMedium);Caption("Manual daily total")}
         }
-        Section("Quick water", "One tap to log · Undo available")
+        Text("Quick water",style=MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf(8,16,24).forEach{oz->Action(if(journal.settings.volumeUnit=="ml")"${number(oz*29.5735295625)} mL" else "$oz oz",Modifier.weight(1f),enabled=!busy){onWater(oz)}}}
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Section("Your day");Caption("${rows.size} ${if(rows.size==1)"record" else "records"}")}
         if(rows.isEmpty())Panel{Text("A fresh page",style=MaterialTheme.typography.titleLarge);Caption(if(query.isNotBlank() || filter!="All")"No records match this view." else "Nothing logged for this date. Add a meal, a drink, or a moment of movement.")}
         rows.forEach {entry->TimelineCard(entry,journal,onEntry)}
-        Panel {Section("Daily note", "Sleep, stress, travel—whatever gives your day context.");journal.entries.find{it.kind==EntryKind.NOTE && it.localDate==date.toString()}?.let{Caption(it.notes)};Action("${if(journal.entries.any{it.kind==EntryKind.NOTE && it.localDate==date.toString()})"Edit" else "Add"} daily note",onClick=onNote)}
+        Panel {journal.entries.find{it.kind==EntryKind.NOTE && it.localDate==date.toString()}?.let{Caption(it.notes)};Action("${if(journal.entries.any{it.kind==EntryKind.NOTE && it.localDate==date.toString()})"Edit" else "Add"} daily note",onClick=onNote)}
         Caption("Your journal records what you log. An empty day means unknown, never zero.")
         Spacer(Modifier.height(18.dp))
     }

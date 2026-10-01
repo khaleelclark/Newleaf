@@ -61,8 +61,10 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
     }
     ModalBottomSheet(sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),onDismissRequest=onClose,containerColor=MaterialTheme.colorScheme.background,modifier=Modifier.fillMaxHeight(.95f)){
         Column(Modifier.padding(horizontal=22.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(15.dp)){
-            Section("Make yourself at home", "Preferences, sources, and your data.")
-            Panel{Section("Units & appearance");UnitPreferences(local){next->if(next.volumeUnit!=local.volumeUnit && goal.toDoubleOrNull()!=null)goal=number(Units.convert(goal.toDouble(),local.volumeUnit,next.volumeUnit));local=next}}
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Section("Settings");TextButton(onClick=onClose){Text("Close")}}
+            Caption("Preferences, nutrition sources, and your data.")
+            Disclosure("Units & appearance"){UnitPreferences(local){next->if(next.volumeUnit!=local.volumeUnit && goal.toDoubleOrNull()!=null)goal=number(Units.convert(goal.toDouble(),local.volumeUnit,next.volumeUnit));local=next}}
+            Disclosure("Goals & reminders") {
             Panel{Section("Water goal", "Optional. Set a personal goal, or leave blank.");Field("Daily goal · ${if(local.volumeUnit=="ml")"mL" else "US fl oz"}",goal,{goal=it},numeric=true)}
             Panel{
                 Section("Meal check-in reminders", "Optional, about one hour after a meal. Off by default.")
@@ -71,6 +73,7 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
                     else local=local.copy(remindersEnabled=enabled)
                 });Text("Remind me to record how I felt",Modifier.padding(top=12.dp))}
                 Caption("Reminders use Android's inexact scheduling. Dismissing one never creates a journal observation.")
+            }
             }
             Panel{
                 Section("Nutrition sources", "Manual logging, favorites and exports work offline.")
@@ -94,7 +97,7 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
                 Caption("Search and Describe send food queries directly to USDA with your personal key, or through your optional gateway when no personal key is set. Describe accepts comma/newline food lists and suggests matches that need your confirmation. Barcode lookup sends only the code to Open Food Facts. The rest of your journal stays on this phone.")
             }
             Panel{Section("Your record, in your hands");Action("Export JSON, CSV or Markdown",Modifier.fillMaxWidth(),onClick=onExport);Action("Create full backup",Modifier.fillMaxWidth(),onClick=onBackup);Action("Restore from file",Modifier.fillMaxWidth(),onClick=onRestore);Caption("Exports are readable wherever you save them. Uninstalling or clearing app data removes this phone's journal. Save a full backup first.")}
-            Panel{Section("About Newleaf");Caption("Version ${com.khaleel.newleaf.BuildConfig.VERSION_NAME} · A private everyday journal.");Action("Third-party notices & licenses",Modifier.fillMaxWidth()){showingLicenses=true}}
+            Disclosure("About Newleaf"){Caption("Version ${com.khaleel.newleaf.BuildConfig.VERSION_NAME} · A private everyday journal.");Action("Third-party notices & licenses",Modifier.fillMaxWidth()){showingLicenses=true}}
             error?.let{Caption(it)}
             Action("Save preferences",Modifier.fillMaxWidth(),primary=true){runCatching{val n=goal.takeIf{it.isNotBlank()}?.toDouble();require(n==null || n.isFinite() && n>0){"Water goal must be positive or blank"};onSave(local.copy(waterGoalMl=n?.let{Units.volumeMl(it,local.volumeUnit)}))}.onFailure{error=it.message}}
             Spacer(Modifier.height(24.dp))

@@ -26,6 +26,7 @@ class FreeNutritionUiTest {
     @Test fun describeExplainsItemListsAndKeepsTypedInputForManualContinuation() {
         openJournal()
         ui.onNodeWithText("+  Log your day").performClick()
+        ui.onNodeWithText("More ways to log").performScrollTo().performClick()
         ui.onNodeWithText("Meal").performScrollTo().performClick()
         ui.onNodeWithText("Describe").performScrollTo().performClick()
         ui.onNodeWithText("Describe foods").performScrollTo().performTextInput("2 eggs, 1 cup milk")

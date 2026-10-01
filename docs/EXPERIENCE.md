@@ -1,6 +1,6 @@
 # Experience and visual specification
 
-Version 0.1 — proposed layouts and design direction, not approved final artwork.
+Version 0.1.1 — implemented flow refinement, October 1, 2026. Visual device validation remains a release check.
 
 ## 1. Interaction principles
 
@@ -13,7 +13,7 @@ Version 0.1 — proposed layouts and design direction, not approved final artwor
 
 ## 2. Navigation
 
-Bottom navigation: Today, History, Trends. A persistent, clearly labeled Log control opens Food/Meal, Drink, Activity, Weight, Steps, and Check-in. Food, Drink, and Activity receive the strongest visual emphasis.
+Bottom navigation: Today, History, Trends, with selected-state accessibility semantics. The persistent “Log your day” control opens three main choices: Food, Drink, Activity. “More ways to log” reveals Meal, Weight, Steps, Check-in, and Daily note. Meal is the multiple-item flow; Food supports a name-only entry. Saved drafts can be continued from a collapsed Saved drafts section, keeping the main choices clear on a populated installation.
 
 Library opens from food logging and a secondary menu. Settings contains units, goals, reminders, appearance, privacy/source information, export, backup/restore, and data deletion. Export is also reachable from History so it is not buried.
 
@@ -44,7 +44,7 @@ flowchart TD
 
 One short welcome introduces the journal and export capability. Let the user choose units and appearance, then go directly to Today. Weight, goals, account creation, and notifications are not required to begin.
 
-Ask camera permission when Scan is selected. Denial leaves manual barcode input and search available. Explain online nutrition lookup when first used. Notification permission is requested only if the user turns on reminders. An optional microphone is a later enhancement; typing a meal description is part of the first release.
+Ask camera permission before opening the scanner when Scan is selected. Denial shows a plain in-editor explanation and leaves manual barcode input and search available, instead of opening a scanner camera-error dialog. The scanner stays in portrait orientation. Explain online nutrition lookup when first used. Notification permission is requested only if the user turns on reminders. An optional microphone is a later enhancement; typing a meal description is part of the first release.
 
 ## 4. Today
 
@@ -85,7 +85,9 @@ Selecting a result opens portion review. Quantity receives focus, with available
 
 ### Scan
 
-Open a camera view with a simple scan boundary, flashlight, manual-code option, and Back. Pause recognition after one code is captured to prevent repeated requests. A match opens the product/portion screen. A missing or incomplete match offers search or a custom food with the barcode retained. Do not claim “no calories” when data is absent.
+Open a camera view with a simple scan boundary, flashlight, manual-code option, and Back. Pause recognition after one code is captured to prevent repeated requests. A captured code immediately starts free Open Food Facts lookup and opens the populated product/portion review on a match, without a separate result-card tap. Typed codes use “Find product” and then follow the same review path. The review shows product name, brand/source, reported portion, and scaled calories. It labels a populated starting amount as a product-label reference, not detected consumption. Editable nutrition and portion/source details expand separately. The consumed amount must be reviewed. A missing provider portion stays blank rather than defaulting to one serving; absent nutrition remains unknown. “Confirm item” adds the reviewed result to the local draft, and “Save food”, “Save drink”, or “Save meal” persists it separately. Canceling review leaves the journal unchanged.
+
+Lookup progress and failure/not-found feedback appear at the top of the barcode controls. Progress disables duplicate requests and journal save. Unexpected failures use fixed wording; only sanitized NutritionException messages are displayed. Cancellation is checked again after lookup so abandoned results cannot reopen review. Switching Search/Describe methods cancels the preceding request and clears results; request identity checks stop older responses from replacing current results. Failure or no match keeps the code in the locally recoverable draft and visible and offers “Try barcode again”, manual product entry with the barcode retained, or a switch to name search. Camera cancellation leaves the current draft untouched; manual barcode entry remains available when camera access is declined. The fake capture and lookup hooks are used only by offline UI tests; production uses Android scanning and NutritionClient.barcode.
 
 ### Describe
 
@@ -97,11 +99,11 @@ Settings lists only the free sources: Open Food Facts barcode lookup requires no
 
 ### Saved meals and recipes
 
-Favorites are reachable immediately from the food sheet. A saved meal opens with its usual portions prefilled; Confirm saves it with today's time. “Repeat” from a prior meal opens the same review. Recipe creation is a secondary library flow: add ingredients, select yield, optionally enter cooked weight, review nutrients, save.
+Favorites and recent items are reachable through an expandable section in the meal sheet and through Library. A saved meal opens with its usual portions prefilled; review it and save with today's time. “Repeat” from a prior meal opens the same review. Recipe creation is a secondary library flow: add ingredients, select yield, optionally enter cooked weight, review nutrients, save.
 
 ## 6. Drink flow
 
-Show Water first, followed by favorite drinks. A favorite carries its usual volume and composition. Main inputs are drink, volume, unit, and time. Expand for milk/sugar additions, nutrition, notes, or meal association.
+Show Water, Coffee, Tea, and Other shortcuts; the name field accepts any drink. Changing a manually typed name to a non-water drink removes the default water classification. Main inputs are drink and volume/unit. Nutrition, portion evidence/favorite options, milk/sugar additions, notes/photos, and date/time expand separately. A selected provider product keeps its reported portion unit and nutrition snapshot.
 
 Quick water presets save in one tap, update the total immediately after a successful local write, and display Undo. Repeated taps represent separate drinks; prevent only accidental duplicate submission of the same in-flight save. Undo removes the last identified entry, not whichever entry happens to be latest after an unrelated change.
 
@@ -109,7 +111,7 @@ Quick water presets save in one tap, update the total immediately after a succes
 
 Meal detail offers “How did you feel?” with tag chips and optional ratings. Time defaults to now; “Observed earlier” changes it. If there are multiple check-ins, show their elapsed times and let the user edit each one.
 
-Activity asks for type first, then optional distance/duration. Steps has a separate daily-total sheet showing the existing total before replacement. Weight opens a decimal keypad with the preferred lb/kg unit and an editable timestamp. Neither weight nor activity requires notes.
+Activity asks for type first, then optional distance/duration. Intensity and notes/photos stay collapsed until requested. Steps has a separate daily-total sheet showing the existing total before replacement. Weight opens a decimal keypad with the preferred lb/kg unit and an editable timestamp. Neither weight nor activity requires notes.
 
 Deleting a meal with linked feelings or drinks offers an explicit choice: delete its dependent check-ins or keep them as unlinked observations; keep linked drinks as standalone entries or delete them. The undo operation restores the chosen set atomically.
 
@@ -145,3 +147,20 @@ This is a custom component system; avoid default Material color schemes, promine
 - Keep primary actions visible above the keyboard and respect gesture/status-bar insets.
 - Test on the S25 Ultra at the owner's font/display settings, plus a smaller emulator layout.
 - Proposed usability targets: a repeated meal within 10 seconds; a water favorite in one tap; a common searched meal within 30 seconds excluding provider delay. Validate these through use, not by assertion.
+
+## 11. Implemented simplification and regression checks
+
+Today keeps known logged calories, water, steps, quick water, and the timeline. Nutrition coverage counts are available through “Nutrition coverage”; unknown and partial states stay visible in plain language. The daily-note action follows the timeline. History retains search, filters, date navigation, and export.
+
+Food starts with a name and Manual/Search/Barcode choices. Portion/calories, portion evidence/favorites, notes/photos, and date/time are expandable. The save action stays below the scrolling form and above the keyboard. The portion-review dialog likewise keeps Confirm and Cancel outside its scrolling detail. Source-storage/export restrictions remain visible even with source attribution collapsed.
+
+Meal retains Search/Barcode/Describe/manual methods, explicit item confirmation, and composition. Custom categories, favorites/recent, and library/template/recipe choices expand only when requested. Entry details put Edit up front; reuse, delete, and technical record metadata use secondary disclosures. Settings groups units/appearance and goals/reminders; the masked personal USDA key and optional collapsed gateway remain available. Export, full backup, restore validation/conflict resolution, and photo size/type protections retain their existing behavior. Closing portability returns to the screen from which it opened.
+
+Focused regressions:
+
+- `LoggingUiTest`: quick-water Undo, three-choice initial Log screen, hidden optional fields, name-only food save, and unknown calories.
+- `FreeNutritionUiTest`: secondary Meal access, Describe input preservation, free-source explanations, masked USDA field, and collapsed gateway.
+- `BarcodeFlowUiTest`: offline captured-code lookup automatically populates review; Confirm updates only the draft; Save is separate; errors retain code for retry; no match supports manual continuation with barcode; missing portions/nutrition stay unknown; meal items appear only after confirmation; abandoning barcode lookup cannot open stale review; drink volume/water classification and minimal activity saving remain correct.
+- `BarcodeLookupFlowTest`: one request per capture, duplicate suppression, retained-code retry after failure/not-found, cancellation propagation, ignored-cancellation result rejection, sanitized errors, and cleared busy state.
+
+The parent 0.1.1 release run passed 120 JVM tests and 24 mapped Android device tests; see [validation](../releases/VALIDATION.md). No live provider call, camera/emulator run, or compile was performed by the UI specialist. Device verification should include keyboard visibility, large font/TalkBack, dark mode, scan permission denial/cancel, and real product capture on the S25 Ultra.

@@ -27,7 +27,13 @@ class LoggingUiTest {
         ui.onNodeWithText("16 US fl oz water logged").assertIsDisplayed()
         ui.onNodeWithText("Undo").performClick()
         ui.onNodeWithText("+  Log your day").performClick()
+        ui.onNodeWithText("Meal").assertDoesNotExist()
+        ui.onNodeWithText("Weight").assertDoesNotExist()
+        ui.onNodeWithText("More ways to log").assertExists()
         ui.onNode(hasText("Food") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)).performScrollTo().performClick()
+        ui.onNodeWithText("Notes (optional)").assertDoesNotExist()
+        ui.onNodeWithText("Date · YYYY-MM-DD").assertDoesNotExist()
+        ui.onNodeWithText("Calories · kcal (whole consumed portion)").assertDoesNotExist()
         ui.onNodeWithText("Name").performTextInput(fixtureName)
         ui.onNodeWithText("Save food").assertIsDisplayed().performClick()
         ui.waitUntil(10_000) {

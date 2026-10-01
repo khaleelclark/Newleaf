@@ -93,3 +93,15 @@ fun Caption(text:String,modifier:Modifier=Modifier) { Text(text,modifier,color=M
 
 @Composable
 fun Section(title:String,detail:String?=null) { Column(verticalArrangement=Arrangement.spacedBy(4.dp)) { Text(title,style=MaterialTheme.typography.titleLarge); detail?.let { Caption(it) } } }
+
+/** Optional controls stay out of the initial form and retain their state when collapsed. */
+@Composable
+internal fun Disclosure(label:String,content:@Composable ()->Unit) {
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        TextButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+            Text(if(expanded)"Hide ${label.lowercase()}" else label)
+        }
+        if(expanded)content()
+    }
+}

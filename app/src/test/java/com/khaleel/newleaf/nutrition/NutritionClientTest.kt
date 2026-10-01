@@ -521,10 +521,78 @@ class NutritionClientTest {
         assertEquals(8.0, ambiguous.toEntry(20.0, "g").nutrients["energy_kcal"]!!, 1e-9)
     }
 
-    @Test fun offRejectsUnknownBasisAndUnapprovedSets() = runBlocking<Unit> {
+    @Test fun offUnsupportedNutritionStillReturnsRecognizedProductForReview() = runBlocking<Unit> {
         for (fixture in listOf(off("mystery"), off(source = "estimate"), off().replace("as_sold", "prepared"))) {
-            expect(NutritionError.MALFORMED_RESPONSE) { ProviderMappers.openFoodFacts(json(fixture), "3017620422003") }
+            val fake = Fake(NutritionResponse(200, fixture))
+            val client = NutritionClient(settings.copy(usdaApiKey = "private-usda-fixture-key"), fake)
+            val c = client.barcode("3017620422003")!!
+            assertEquals("Orange juice", c.name)
+            assertEquals("Fixture", c.brand)
+            assertEquals("openfoodfacts:3017620422003", c.sourceId)
+            assertEquals(NutrientBasis.UNKNOWN, c.basis)
+            assertNull(c.quantity)
+            assertEquals("serving", c.unit)
+            assertTrue(c.incompleteNutrition)
+            assertTrue(c.nutrients.values.all { it == null })
+            assertEquals("unsupported_input_sets", c.metadata["off_nutrition_status"])
+            assertEquals("", c.preparation)
+            assertTrue(c.portions.isEmpty())
+            assertSame(c, client.details(c))
+            val entry = c.toEntry(250.0, "mL")
+            assertEquals("Orange juice", entry.name)
+            assertEquals("3017620422003", entry.sourceReference!!.barcode)
+            assertEquals("unreviewed", entry.matchStatus)
+            assertTrue(entry.nutrients.values.all { it == null })
+            assertEquals(1, fake.requests.size)
+            assertEquals(setOf("User-Agent", "Accept"), fake.requests.single().headers.keys)
         }
+    }
+
+    @Test fun offUnsupportedSetDoesNotHideLaterSupportedSource() = runBlocking<Unit> {
+        val root = json(off("mystery", "manufacturer"))
+        val sets = root.obj("product")!!.obj("nutrition")!!.getAsJsonArray("input_sets")
+        sets.add(json(off()).obj("product")!!.obj("nutrition")!!.array("input_sets").first())
+        val c = NutritionClient(AppSettings(), Fake(NutritionResponse(200, root.toString())))
+            .barcode("3017620422003")!!
+        assertEquals(NutrientBasis.PER_100_ML, c.basis)
+        assertEquals(40.0, c.toEntry(100.0, "mL").nutrients["energy_kcal"]!!, 1e-9)
+        assertEquals("packaging", c.metadata["off_nutrition_source"])
+        assertEquals("supported_input_set", c.metadata["off_nutrition_status"])
+        assertNull(c.nutrients["fiber_g"])
+    }
+
+    @Test fun offUpcLookupAcceptsOnlyEquivalentPaddedIdentity() = runBlocking<Unit> {
+        val fake = Fake(NutritionResponse(200, off().replace("3017620422003", "0036000291452")))
+        val c = NutritionClient(AppSettings(), fake).barcode(" 036000291452 ")!!
+        assertEquals("036000291452", c.barcode)
+        assertEquals("openfoodfacts:0036000291452", c.sourceId)
+        assertEquals("036000291452", c.toEntry().sourceReference!!.barcode)
+        assertEquals("https://world.openfoodfacts.org/api/v3.6/product/036000291452.json?fields=code,product_name,product_name_en,generic_name,brands,categories_tags,countries_tags,nutrition", fake.requests.single().url)
+        fake.response = NutritionResponse(200, off().replace("3017620422003", "0036000291469"))
+        expect(NutritionError.MALFORMED_RESPONSE) { NutritionClient(AppSettings(), fake).barcode("036000291452") }
+    }
+
+    @Test fun offHttpFailuresRemainErrorsWithoutRetryOrCredentialLeak() = runBlocking<Unit> {
+        for ((status, category) in listOf(429 to NutritionError.RATE_LIMITED,
+            503 to NutritionError.UNAVAILABLE, 302 to NutritionError.UNAVAILABLE)) {
+            val fake = Fake(NutritionResponse(status, "upstream private-usda-fixture-key private-device-fixture-token", 30))
+            val client = NutritionClient(settings.copy(usdaApiKey = "private-usda-fixture-key"), fake)
+            val error = expect(category) { client.barcode("3017620422003") }
+            assertEquals(30L, error.retryAfterSeconds)
+            assertEquals(1, fake.requests.size)
+            assertEquals(setOf("User-Agent", "Accept"), fake.requests.single().headers.keys)
+            assertFalse(error.toString().contains("private-"))
+            assertNull(error.cause)
+        }
+    }
+
+    @Test fun offMalformedSelectedNutrientsRemainExplicitError() = runBlocking<Unit> {
+        val root = json(off())
+        root.obj("product")!!.obj("nutrition")!!.array("input_sets").first().asJsonObject
+            .obj("nutrients")!!.addProperty("energy-kcal", 40)
+        val fake = Fake(NutritionResponse(200, root.toString()))
+        expect(NutritionError.MALFORMED_RESPONSE) { NutritionClient(AppSettings(), fake).barcode("3017620422003") }
+        assertEquals(1, fake.requests.size)
     }
 
     @Test fun offMissingRecordDiffersFromMalformedFailure() = runBlocking<Unit> {
@@ -672,6 +740,9 @@ class NutritionClientTest {
         assertTrue(c.nutrients.values.all { it == null })
         assertTrue(c.toEntry(100.0,"g").nutrients.values.all { it == null })
         assertEquals("3017620422003", c.barcode)
+        assertNull(c.quantity)
+        assertEquals("serving", c.unit)
+        assertEquals("missing_input_sets", c.metadata["off_nutrition_status"])
     }
 
     @Test fun usdaDerivationAndRawKjArePreserved() {

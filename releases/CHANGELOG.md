@@ -1,3 +1,16 @@
+# Newleaf 0.1.1
+
+UX and barcode revision requested after the owner tested 0.1.0. Release verification is recorded in [VALIDATION.md](VALIDATION.md).
+
+- Log opens with Food, Drink and Activity; less frequent entries are under More ways to log.
+- Food supports quick name-only logging. Optional portions/calories, notes/photos, timing, intensity and library controls expand when needed.
+- Camera access is requested before opening the scanner. Denial keeps manual entry available with a plain explanation; the scanner stays in portrait orientation.
+- A barcode capture automatically looks up the product and opens populated product/portion review. Typed-code lookup follows the same path. Confirm updates the draft; Save creates the journal record.
+- Lookup progress prevents duplicate requests; failed and unknown codes remain available for retry or manual entry and draft recovery.
+- Recognized Open Food Facts products remain available when their nutrition format is missing or unsupported. No unsupported conversion or nutrient value is invented.
+- Product review keeps confirmation visible and tucks source/portion details away. Settings and entry actions have a clearer hierarchy; portability returns to its originating screen.
+- Same application/signing identity with version code 3 supports an in-place update from 0.1.0, retaining local journal data and source credentials.
+
 # Newleaf 0.1.0
 
 First Android implementation, October 1, 2026. Final verification status is recorded in [VALIDATION.md](VALIDATION.md).

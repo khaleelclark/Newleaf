@@ -123,4 +123,14 @@ class EditorStateTest {
         JournalValidation.journal(Journal(entries))
     }
 
+    @Test fun failedLookupCodeSurvivesDraftRecoveryAndProductConfirmation() {
+        val draft=EditorDraft.new(EntryKind.FOOD,LocalDate.parse("2026-10-01"),settings)
+            .copy(lookupBarcode="012345678905",name="Still typing",notes="Keep this note")
+        val restored=Gson().fromJson(Gson().toJson(draft),EditorDraft::class.java)
+        assertEquals(draft.lookupBarcode,restored.lookupBarcode)
+        val selected=selectStandaloneItem(restored,Entry(kind=EntryKind.FOOD,name="Product"),settings)
+        assertEquals(draft.lookupBarcode,selected.lookupBarcode)
+        assertEquals("Keep this note",selected.notes)
+    }
+
 }

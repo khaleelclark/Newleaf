@@ -231,8 +231,13 @@ object ProviderMappers {
             .filter { it.text("preparation") == "as_sold" && it.text("source") in setOf("manufacturer", "packaging") }
             .sortedBy { if (it.text("source") == "manufacturer") 0 else 1 }
         val chosen = candidates.firstOrNull { it.text("per") in setOf("100g", "100ml", "serving") }
-        // Unknown basis is rejected when a selected source carries nutrients. No aggregate fallback.
-        if (chosen == null && inputSets.size() > 0) malformed()
+        // A recognized product is still useful when its nutrition cannot be safely
+        // consumed. Preserve identity; never substitute prepared/aggregate values.
+        val nutritionStatus = when {
+            chosen != null -> "supported_input_set"
+            inputSets.size() > 0 -> "unsupported_input_sets"
+            else -> "missing_input_sets"
+        }
         val basis = when(chosen?.text("per")) { "100g" -> NutrientBasis.PER_100_G; "100ml" -> NutrientBasis.PER_100_ML; "serving" -> NutrientBasis.PER_SERVING; else -> NutrientBasis.UNKNOWN }
         val v = Values()
         val nutr = chosen?.obj("nutrients") ?: JsonObject()
@@ -290,7 +295,7 @@ object ProviderMappers {
         val categories = tags(product.get("categories_tags"))
         val sourceId = "openfoodfacts:$returnedCode"
         return FoodCandidate(name, brand = product.text("brands"), quantity = when(basis) { NutrientBasis.PER_100_G, NutrientBasis.PER_100_ML -> 100.0; NutrientBasis.PER_SERVING -> 1.0; else -> null },
-            unit = when(basis) { NutrientBasis.PER_100_ML -> "mL"; NutrientBasis.PER_SERVING -> "serving"; else -> "g" },
+            unit = when(basis) { NutrientBasis.PER_100_G -> "g"; NutrientBasis.PER_100_ML -> "mL"; else -> "serving" },
             nutrients = v.values, basis = basis, servingMassG = servingMass, servingVolumeMl = servingVolume,
             portions = if (servingMass != null || servingVolume != null) listOf(PortionDefinition("serving", 1.0, servingMass, servingVolume)) else emptyList(),
             source = "Open Food Facts", sourceId = sourceId, barcode = barcode,
@@ -300,8 +305,8 @@ object ProviderMappers {
                 attribution = "Contains information from Open Food Facts contributors (https://world.openfoodfacts.org/), made available under the Open Database License (ODbL).",
                 license = "ODbL-1.0 database: https://opendatacommons.org/licenses/odbl/1-0/; DbCL-1.0 contents: https://opendatacommons.org/licenses/dbcl/1-0/",
                 exportAllowed = true, snapshotAllowed = true),
-            nutrientUnits = v.units, nutrientProviderCodes = v.codes, estimatedNutrients = v.estimated, preparation = "as_sold",
-            metadata = v.originals + mapOf("off_nutrition_source" to chosen?.text("source").orEmpty(), "source_url" to "https://world.openfoodfacts.org/product/$returnedCode",
+            nutrientUnits = v.units, nutrientProviderCodes = v.codes, estimatedNutrients = v.estimated, preparation = chosen?.text("preparation").orEmpty(),
+            metadata = v.originals + mapOf("off_nutrition_source" to chosen?.text("source").orEmpty(), "off_nutrition_status" to nutritionStatus, "source_url" to "https://world.openfoodfacts.org/product/$returnedCode",
                 "rights_status" to "Retention/export permitted under published ODbL/DbCL; preserve notices and independently licensed nutrition subset",
                 "off_license_url" to "https://opendatacommons.org/licenses/odbl/1-0/",
                 "off_contents_license_url" to "https://opendatacommons.org/licenses/dbcl/1-0/",

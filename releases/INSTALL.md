@@ -1,11 +1,12 @@
-# Install and use Newleaf 0.1.0
+# Install and use Newleaf 0.1.1
 
 ## On your Galaxy S25 Ultra
 
-1. Download `Newleaf-0.1.0.apk` from the Project files to your phone.
+1. Download `Newleaf-0.1.1.apk` from the Project files to your phone.
 2. Open the file through Samsung My Files or your download notification.
 3. If Android asks, allow app installation for the app you used to open this file, then tap Install.
-4. Open Newleaf, choose your units, and tap Start your journal.
+4. If you already have Newleaf installed, install this update over it; do not uninstall. Your local journal and source credentials stay on the device.
+5. For a first installation, open Newleaf, choose your units, and tap Start your journal.
 
 This is a direct APK installation, not a Play Store listing. If Samsung Auto Blocker prevents installation, use your phone's Auto Blocker controls for this trusted APK and restore your preferred protection afterward. Menu locations vary with One UI version. [Samsung's Auto Blocker explanation](https://www.samsung.com/us/support/answer/ANS10003636/)
 
@@ -14,9 +15,11 @@ No diary account is needed. The app starts empty; fictional sample exports are s
 ## Daily use
 
 - Today shows known logged calories, water, steps, and your timeline.
-- Tap + Log for a meal, food, drink, activity, weight, steps, check-in, or daily note.
+- Tap + Log your day for Food, Drink or Activity. More ways to log contains Meal, Weight, Steps, Check-in and Daily note.
+- Enter a name to log a food quickly. Expand optional portion/calorie, notes/photo and date/time controls when needed.
 - Meals support manual items, online food search, barcode lookup, and USDA-assisted meal descriptions when configured.
-- Review suggested foods and portions before saving. Blank calories/nutrients stay unknown.
+- For packaged food, choose Barcode → Scan barcode. A successful match opens the populated product review automatically. Confirm the item, then tap Save food or Save drink. Typed barcode lookup follows the same path. If camera access is declined, enter the code directly or use Search/Manual.
+- Review suggested foods and portions before saving. Blank calories/nutrients stay unknown. If a product has no supported nutrition, its identity still appears and missing values stay unknown. Failed/unknown lookups retain the code for retry or manual entry.
 - Save favorites, repeat a previous meal, or use Library for saved meals and recipes.
 - History lets you log/edit earlier dates. Trends show the recorded data and its gaps.
 - Units, appearance, an optional water goal, source settings, and portability are in Settings.

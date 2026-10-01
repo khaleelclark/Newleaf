@@ -26,7 +26,7 @@ internal fun EntryDetail(entry:Entry,journal:Journal,onClose:()->Unit,onEdit:(En
                 Action("How did you feel?",Modifier.fillMaxWidth(),primary=true,onClick=onCheckin)
                 val checkins=journal.entries.filter{it.mealId==entry.id && it.kind==EntryKind.CHECKIN}.sortedBy{it.occurredAt}
                 checkins.forEach { checkin->Panel {Text(checkin.tags.joinToString(" · ").ifBlank{checkin.name});Caption("${checkin.localDate} ${entryTime(checkin)} · ${number(EventTimes.elapsedSeconds(checkin,entry)/60.0)} min after meal");if(checkin.notes.isNotBlank())Caption(checkin.notes);Action("Edit check-in"){onEdit(checkin)}} }
-                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action("Repeat meal",Modifier.weight(1f),onClick=onRepeat);Action("Save template",Modifier.weight(1f),onClick=onTemplate)}
+                Disclosure("Reuse this meal"){Action("Repeat meal",Modifier.fillMaxWidth(),onClick=onRepeat);Action("Save template",Modifier.fillMaxWidth(),onClick=onTemplate)}
             }
             if(entry.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
                 Panel {Section("Portion & nutrition");Caption("${number(entry.quantity)} ${entry.unit} · ${entry.portionEvidence}");nutrientLabels.forEach{(key,label)->Caption("$label: ${entry.nutrients[key]?.let{number(it)} ?: "Unknown"}")};Caption("Source: ${entry.source}${entry.sourceId?.let{" · $it"} ?: ""}");entry.sourceReference?.let{source->if(source.attribution.isNotBlank())Caption(source.attribution);if(source.license.isNotBlank())Caption(source.license);if(!source.exportAllowed || !source.snapshotAllowed)Caption("Storage/export permission pending; full exports containing this source are blocked.")};Caption("Match: ${entry.matchStatus}");entry.nutrientEvidence["energy_kcal"]?.let{Caption("${it.status} · ${it.basis}")}}
@@ -38,9 +38,10 @@ internal fun EntryDetail(entry:Entry,journal:Journal,onClose:()->Unit,onEdit:(En
             if(entry.kind==EntryKind.CHECKIN){Caption(entry.tags.joinToString(" · "));entry.ratings.forEach{(name,value)->Caption("$name: $value / 5")};entry.mealId?.let{id->journal.entries.find{it.id==id}?.let{meal->Caption("Linked to ${meal.name} · ${number(EventTimes.elapsedSeconds(entry,meal)/60.0)} min after meal")}}}
             if(entry.originalText.isNotBlank())Panel{Section("Original description");Text(entry.originalText)}
             if(entry.photoPaths.isNotEmpty()){Section("Attached photos");PhotoGallery(entry.photoPaths)}
-            Caption("Time zone: ${entry.zoneId}\nEntered: ${entry.createdAt}\nRevision: ${entry.version}")
+            Disclosure("Record details"){Caption("Time zone: ${entry.zoneId}\nEntered: ${entry.createdAt}\nRevision: ${entry.version}")}
             Action("Edit entry",Modifier.fillMaxWidth(),primary=true){onEdit(entry)}
-            Action("Delete entry",Modifier.fillMaxWidth(),onClick=onDelete)
+            Disclosure("More entry actions"){Action("Delete entry",Modifier.fillMaxWidth(),onClick=onDelete)}
+            TextButton(onClick=onClose){Text("Close")}
             Spacer(Modifier.height(24.dp))
         }
     }

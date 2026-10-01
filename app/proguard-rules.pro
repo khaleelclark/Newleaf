@@ -2,6 +2,16 @@
 # Preserve field names and constructors across updates and exported schemas.
 -keep class com.khaleel.newleaf.data.** { *; }
 -keep class com.khaleel.newleaf.ui.EditorDraft { *; }
+-keep class com.khaleel.newleaf.ui.EditorDraft$Companion { *; }
+# Product review instrumentation shares this Compose model with the target APK,
+# including its generated stability field and constructors.
+-keep class com.khaleel.newleaf.nutrition.FoodCandidate { *; }
+-keep class com.khaleel.newleaf.nutrition.NutritionException { *; }
+-keep class com.khaleel.newleaf.nutrition.NutritionError { *; }
+# The offline UI tests invoke these composables with fake lookup/capture hooks.
+# Retain their calling convention and hooks across the separate APK boundary.
+-keep class com.khaleel.newleaf.ui.EntryEditorKt { *; }
+-keep class com.khaleel.newleaf.ui.DesignKt { *; }
 -keepattributes Signature,InnerClasses,EnclosingMethod
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken

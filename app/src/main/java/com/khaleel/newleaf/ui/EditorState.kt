@@ -24,7 +24,8 @@ internal data class EditorDraft(
     val distance:String="", val duration:String="", val steps:String="", val weight:String="",
     val category:String="", val intensity:String="", val servings:String="", val yieldGrams:String="",
     val photos:List<String> = emptyList(), val originalText:String="", val favorite:Boolean=false,
-    val water:Boolean=false, val completeness:String="unmarked", val saveAs:String="journal"
+    val water:Boolean=false, val completeness:String="unmarked", val saveAs:String="journal",
+    val lookupBarcode:String?=null
 ) {
     companion object {
         fun new(kind:EntryKind,date:LocalDate,settings:AppSettings,mealId:String?=null):EditorDraft = EditorDraft(kind=kind,date=date.toString(),mealId=mealId,
@@ -102,7 +103,7 @@ internal fun baseDrinkEvidence(entry:Entry):Map<String,NutrientEvidence> {
 internal fun selectStandaloneItem(draft:EditorDraft,item:Entry,settings:AppSettings):EditorDraft {
     val source=item.copy(id=draft.id,mealId=draft.mealId,notes=draft.notes,photoPaths=draft.photos,isLibrary=draft.saveAs=="library",createdAt=draft.base?.createdAt ?: item.createdAt,version=draft.base?.version ?: item.version)
     return EditorDraft.edit(source,emptyList(),settings).copy(id=draft.id,isNew=draft.isNew,date=draft.date,time=draft.time,zone=draft.zone,offset=draft.offset,
-        favorite=draft.favorite,saveAs=draft.saveAs,originalText=draft.originalText.ifBlank{item.originalText},base=source)
+        favorite=draft.favorite,saveAs=draft.saveAs,lookupBarcode=draft.lookupBarcode,originalText=draft.originalText.ifBlank{item.originalText},base=source)
 }
 
 internal fun canonicalPortion(source:Entry?,quantity:Double,unit:String,volume:Boolean):Double? {

@@ -6,7 +6,7 @@ Newleaf is a personal Android journal for meals, drinks, activity, body weight, 
 
 ## Project status
 
-Newleaf 0.1.0 is available as a signed Android APK with a source archive, installation instructions and fictional export examples. A specialist team built the Android experience, journal/export layer, and free nutrition lookup. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; the free-only release passed 108 JVM tests, 17 mapped release device tests and 20 optional gateway tests.
+Newleaf 0.1.1 is available as a signed Android APK with a source archive, installation instructions and fictional export examples. A specialist team built the Android experience, journal/export layer, and free nutrition lookup. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; the UX/barcode update passed 120 JVM tests, 24 mapped release device tests and 20 optional gateway tests. Its logging choices are simpler, optional details expand when needed, and barcode matches open populated review automatically.
 
 Project location: `/home/phoenix/khaleel/Newleaf`.
 
