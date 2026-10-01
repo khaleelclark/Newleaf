@@ -13,4 +13,5 @@ __pycache__/
 releases/*-unsigned.apk
 releases/*.apk
 releases/*-source.zip
+releases/MAPPING.txt
 gateway/.newleaf-quota.json*

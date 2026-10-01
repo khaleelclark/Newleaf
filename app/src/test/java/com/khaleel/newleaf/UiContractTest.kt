@@ -8,6 +8,38 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class UiContractTest {
+    @Test fun editingComposedDrinkRetainsSourceEvidenceAndRemovingAdditionsClearsSnapshots() {
+        val base=Entry(kind=EntryKind.DRINK,name="Fictional OFF drink",quantity=100.0,unit="ml",volumeMl=100.0,
+            nutrients=mapOf("energy_kcal" to 100.0),basisQuantity=100.0,basisUnit="ml",source="Open Food Facts",
+            sourceReference=SourceReference(provider="Open Food Facts",itemId="fictional"),
+            nutrientEvidence=mapOf("energy_kcal" to NutrientEvidence(origin="provider",providerCode="energy-kcal_100ml")),
+            metadata=mapOf("nutrition_scale" to "1.0"))
+        val addition=Entry(kind=EntryKind.FOOD,name="Fictional sugar",nutrients=mapOf("energy_kcal" to 20.0))
+        val composed=Nutrition.composeDrink(base,listOf(addition))
+        val draft=changePortion(EditorDraft.edit(composed,listOf(composed),AppSettings()),"200","ml")
+        val revised=draft.toEntries(AppSettings()).single()
+        assertEquals(220.0,revised.nutrients["energy_kcal"]!!,0.0)
+        val json=com.google.gson.JsonParser.parseString(JournalExports.json(Journal(listOf(revised)))).asJsonObject
+        val snapshot=json.getAsJsonObject("open_food_facts_nutrition").getAsJsonArray("nutrition_snapshots")[0].asJsonObject
+        val nutrient=snapshot.getAsJsonArray("nutrients")[0].asJsonObject
+        assertEquals(100.0,nutrient["value"].asDouble,0.0)
+        assertEquals("energy-kcal_100ml",nutrient["provider_code"].asString)
+        val without=draft.copy(items=emptyList()).toEntries(AppSettings()).single()
+        assertTrue(without.composition.isEmpty())
+        assertEquals(200.0,without.nutrients["energy_kcal"]!!,0.0)
+    }
+    @Test fun editingProviderPortionPreservesReferenceNutritionInExport() {
+        val entry=Entry(kind=EntryKind.FOOD,name="Fictional OFF fixture",quantity=50.0,unit="g",massGrams=50.0,
+            nutrients=mapOf("energy_kcal" to 100.0),basisQuantity=100.0,basisUnit="g",
+            source="Open Food Facts",sourceReference=SourceReference(provider="Open Food Facts",itemId="fictional"),
+            metadata=mapOf("nutrition_scale" to "0.5"))
+        val draft=changePortion(EditorDraft.edit(entry,listOf(entry),AppSettings()),"100","g")
+        val revised=draft.toEntries(AppSettings()).single()
+        assertEquals(200.0,revised.nutrients["energy_kcal"]!!,0.0)
+        val json=com.google.gson.JsonParser.parseString(JournalExports.json(Journal(listOf(revised)))).asJsonObject
+        val subset=json.getAsJsonObject("open_food_facts_nutrition").getAsJsonArray("nutrition_snapshots")[0].asJsonObject
+        assertEquals(200.0,subset.getAsJsonArray("nutrients")[0].asJsonObject["value"].asDouble,0.0)
+    }
     @Test fun metricDrinkFromPreferencesRetainsItsVolume() {
         val settings=AppSettings(volumeUnit="ml")
         val draft=EditorDraft.new(EntryKind.DRINK,LocalDate.of(2026,10,1),settings).copy(quantity="100")

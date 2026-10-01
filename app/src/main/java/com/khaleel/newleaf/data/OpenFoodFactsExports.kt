@@ -25,7 +25,13 @@ internal object OpenFoodFactsExports {
             val scale = entry.metadata["nutrition_scale"]?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 }
             val values = if (entry.composition.isEmpty()) entry.nutrients else {
                 val base = entry.metadata["drink_base_nutrients"]?.let { JsonParser.parseString(it).asJsonObject }
-                entry.nutrients.keys.associateWith { code -> base?.get(code)?.takeIf { !it.isJsonNull }?.asDouble }
+                base?.entrySet()?.associate { (code, value) -> code to value.takeIf { !it.isJsonNull }?.asDouble }.orEmpty()
+            }
+            val sourceEvidence = if (entry.composition.isEmpty()) entry.nutrientEvidence else {
+                val base = entry.metadata["drink_base_evidence"]?.let { JsonParser.parseString(it).asJsonObject }
+                base?.entrySet()?.associate { (code, evidence) ->
+                    code to JournalCodec.gson.fromJson(evidence, NutrientEvidence::class.java)
+                } ?: entry.nutrientEvidence.filterValues { it.origin != "composition" }
             }
             val referenceBasis = scale != null && entry.basisQuantity != null && entry.basisUnit.isNotBlank()
             val record = JsonObject().apply {
@@ -42,7 +48,7 @@ internal object OpenFoodFactsExports {
                 addProperty("basis_unit", if (referenceBasis) entry.basisUnit else null)
                 add("nutrients", JsonArray().apply {
                     values.toSortedMap().forEach { (code, value) ->
-                        val evidence = entry.nutrientEvidence[code]
+                        val evidence = sourceEvidence[code]
                         // Personal override text/values do not enter the independently licensed subset.
                         if (code !in source.overrides && evidence?.origin != "user_override") add(JsonObject().apply {
                             addProperty("code", code)

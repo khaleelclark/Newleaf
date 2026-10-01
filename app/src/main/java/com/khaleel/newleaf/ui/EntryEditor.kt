@@ -74,7 +74,8 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
     }
     val scanner=rememberLauncherForActivityResult(ScanContract()) { result->result.contents?.let { query=it;lookupMode="Barcode";lookup("Barcode",it) } }
     ModalBottomSheet(sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),onDismissRequest=onClose,containerColor=MaterialTheme.colorScheme.background,dragHandle={BottomSheetDefaults.DragHandle()},modifier=Modifier.fillMaxHeight(.95f)) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal=22.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
+        Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal=22.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { Text(if(!draft.isNew)"Edit ${kindName(draft.kind).lowercase()}" else "Add ${kindName(draft.kind).lowercase()}",style=MaterialTheme.typography.headlineMedium);TextButton(onClick=onClose){Text("Close")} }
             Caption("${draft.date} · ${draft.zone}")
             Field(if(draft.kind==EntryKind.MEAL)"Meal name" else "Name",draft.name,{onChange(draft.copy(name=it))})
@@ -171,10 +172,13 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { Action("Choose photo"){pickPhoto.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))};Action("Camera"){if(ContextCompat.checkSelfPermission(context,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)startCamera()else cameraPermission.launch(Manifest.permission.CAMERA)} }
             if(draft.photos.isNotEmpty())PhotoGallery(draft.photos)
             draft.photos.forEachIndexed { index,path->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Caption("Photo ${index+1} · ${File(path).name.takeLast(16)}",Modifier.weight(1f));TextButton(onClick={onChange(draft.copy(photos=draft.photos-path))}){Text("Remove")}} }
-            saveError?.let{Text(it,color=MaterialTheme.colorScheme.error)}
-            Action(if(busy)"Saving…" else if(!draft.isNew)"Save changes" else if(draft.saveAs!="journal" || draft.kind in listOf(EntryKind.RECIPE,EntryKind.TEMPLATE))"Save to library" else "Save ${kindName(draft.kind).lowercase()}",Modifier.fillMaxWidth(),primary=true,enabled=!busy,onClick=onSave)
             Caption("Draft saved locally while you type. Close to continue later.")
             Spacer(Modifier.height(24.dp))
+        }
+        Column(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            saveError?.let{Text(it,color=MaterialTheme.colorScheme.error)}
+            Action(if(busy)"Saving…" else if(!draft.isNew)"Save changes" else if(draft.saveAs!="journal" || draft.kind in listOf(EntryKind.RECIPE,EntryKind.TEMPLATE))"Save to library" else "Save ${kindName(draft.kind).lowercase()}",Modifier.fillMaxWidth(),primary=true,enabled=!busy,onClick=onSave)
+        }
         }
     }
     if(itemDialog) PortionDialog(reviewingCandidate,reviewingEntry,allowAdditions=selectingStandalone || draft.kind!=EntryKind.DRINK,onDismiss={itemDialog=false}) { item->
@@ -203,8 +207,8 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
     var additions by remember { mutableStateOf(original?.composition.orEmpty()) };var adding by remember{mutableStateOf(false)}
     var overrides by remember { mutableStateOf<Map<String,String>>(emptyMap()) };var error by remember { mutableStateOf<String?>(null) }
     val scaled=remember(candidate,original,quantity,unit,kind) {runCatching { if(candidate!=null)candidate.toEntry(quantity.toDoubleOrNull(),unit,kind) else {
-        val old=original?.copy(nutrients=baseDrinkNutrition(original)) ?: Entry(kind=kind,name=name);val q=quantity.toDoubleOrNull();val ratio=if(original?.quantity!=null && original.quantity!!>0 && q!=null)portionFactor(original,original.quantity!!,original.unit,q,unit) else if(original==null)1.0 else null
-        old.copy(kind=kind,quantity=q,unit=unit,nutrients=old.nutrients.mapValues{it.value?.let{n->ratio?.times(n)}},volumeMl=if(kind==EntryKind.DRINK)q?.let{canonicalPortion(original,it,unit,true)} else null,massGrams=if(kind==EntryKind.FOOD)q?.let{canonicalPortion(original,it,unit,false)}else null)
+        val old=original?.copy(nutrients=baseDrinkNutrition(original),nutrientEvidence=baseDrinkEvidence(original)) ?: Entry(kind=kind,name=name);val q=quantity.toDoubleOrNull();val ratio=if(original?.quantity!=null && original.quantity!!>0 && q!=null)portionFactor(original,original.quantity!!,original.unit,q,unit) else if(original==null)1.0 else null
+        old.copy(kind=kind,quantity=q,unit=unit,nutrients=old.nutrients.mapValues{it.value?.let{n->ratio?.times(n)}},metadata=rescaledMetadata(original,q,unit),volumeMl=if(kind==EntryKind.DRINK)q?.let{canonicalPortion(original,it,unit,true)} else null,massGrams=if(kind==EntryKind.FOOD)q?.let{canonicalPortion(original,it,unit,false)}else null)
     } }.getOrNull() }
     Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
         Surface(Modifier.fillMaxWidth(.94f).fillMaxHeight(.9f),shape=androidx.compose.foundation.shape.RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.background) {
@@ -230,7 +234,7 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                         val base=requireNotNull(scaled){"This portion could not be converted"}
                         val nutrients=base.nutrients+overrides.mapValues{(_,v)->v.takeIf{it.isNotBlank()}?.toDouble()?.also{require(it>=0 && it.isFinite()){"Nutrition must be zero or greater"}}}
                         val reviewed=base.copy(name=name.trim(),quantity=q,unit=unit,portionEvidence=evidence,kind=kind,matchStatus="confirmed",nutrients=nutrients,nutrientEvidence=base.nutrientEvidence+overrides.mapValues{(code,v)->NutrientEvidence(status=if(v.isBlank())"unknown"else"known",origin="user_override",unit=Units.nutrientUnit(code),basis="consumed")},sourceReference=base.sourceReference?.let{it.copy(overrides=it.overrides+overrides)},countsAsWater=kind==EntryKind.DRINK && (original?.countsAsWater==true || name.equals("water",true)))
-                        onConfirm(if(kind==EntryKind.DRINK && additions.isNotEmpty())Nutrition.composeDrink(reviewed,additions).copy(metadata=reviewed.metadata+("drink_base_nutrients" to com.google.gson.Gson().toJson(nutrients)))else reviewed.copy(composition=emptyList()))
+                        onConfirm(if(kind==EntryKind.DRINK && additions.isNotEmpty())Nutrition.composeDrink(reviewed,additions)else reviewed.copy(composition=emptyList()))
                     }.onFailure{error=it.message}
                 }
                 Action("Cancel",Modifier.fillMaxWidth(),onClick=onDismiss)

@@ -203,14 +203,54 @@ class ExportsTest {
     @Test fun offSubsetExcludesManualDrinkAdditionsAndRetainsNestedOffIngredientSources() {
         val source = SourceReference(provider = "Open Food Facts", itemId = "off:12345678", barcode = "12345678")
         val base = at(Entry(kind = EntryKind.DRINK, name = "Catalog drink", sourceReference = source,
-            nutrients = mapOf("energy_kcal" to 300.0), basisQuantity = 100.0, basisUnit = "ml", metadata = mapOf("nutrition_scale" to "1.5")))
-        val addition = Entry(kind = EntryKind.FOOD, name = "PRIVATE manual addition", notes = "PRIVATE addition note", nutrients = mapOf("energy_kcal" to 50.0))
+            nutrients = mapOf("energy_kcal" to 300.0, "sodium_mg" to null, "protein_g" to 10.0),
+            nutrientEvidence = mapOf("energy_kcal" to NutrientEvidence(status = "estimated", origin = "Open Food Facts", providerCode = "energy-kcal_100g", unit = "kcal"),
+                "sodium_mg" to NutrientEvidence(status = "unknown", origin = "Open Food Facts", providerCode = "sodium_100g", unit = "mg"),
+                "protein_g" to NutrientEvidence(origin = "user_override")),
+            basisQuantity = 100.0, basisUnit = "ml", metadata = mapOf("nutrition_scale" to "1.5")))
+        val addition = Entry(kind = EntryKind.FOOD, name = "PRIVATE manual addition", notes = "PRIVATE addition note",
+            nutrients = mapOf("energy_kcal" to 50.0, "sodium_mg" to 20.0, "fat_g" to 9.0))
         val composed = Nutrition.composeDrink(base, listOf(addition))
-        val subset = OpenFoodFactsExports.subset(listOf(composed))
-        assertEquals(200.0, subset["nutrition_snapshots"].asJsonArray.single().asJsonObject["nutrients"].asJsonArray.first { it.asJsonObject["code"].asString == "energy_kcal" }.asJsonObject["value"].asDouble, 0.0)
-        assertFalse(subset.toString().contains("PRIVATE"))
+        assertEquals(350.0, composed.nutrients.getValue("energy_kcal")!!, 0.0)
+        assertEquals("composition", composed.nutrientEvidence.getValue("energy_kcal").origin)
+        val journal = Journal(listOf(composed))
+        val subsets = listOf(
+            JsonParser.parseString(JournalExports.json(journal)).asJsonObject["open_food_facts_nutrition"].asJsonObject,
+            JsonParser.parseString(String(unzip(JournalExports.csvZip(journal)).getValue(OpenFoodFactsExports.SUBSET_FILE))).asJsonObject,
+            JsonParser.parseString(String(unzip(JournalExports.backup(journal)).getValue(OpenFoodFactsExports.SUBSET_FILE))).asJsonObject)
+        subsets.forEach { subset ->
+            val record = subset["nutrition_snapshots"].asJsonArray.single().asJsonObject
+            val nutrients = record["nutrients"].asJsonArray.associate { it.asJsonObject["code"].asString to it.asJsonObject }
+            assertEquals(setOf("energy_kcal", "sodium_mg"), nutrients.keys)
+            assertEquals(200.0, nutrients.getValue("energy_kcal")["value"].asDouble, 0.0)
+            assertEquals("estimated", nutrients.getValue("energy_kcal")["status"].asString)
+            assertEquals("energy-kcal_100g", nutrients.getValue("energy_kcal")["provider_code"].asString)
+            assertTrue(nutrients.getValue("sodium_mg")["value"].isJsonNull)
+            assertEquals("unknown", nutrients.getValue("sodium_mg")["status"].asString)
+            assertEquals("sodium_100g", nutrients.getValue("sodium_mg")["provider_code"].asString)
+            assertFalse(subset.toString().contains("PRIVATE")); assertFalse(subset.toString().contains(addition.id))
+        }
+        val restored = JournalExports.previewRestore(JournalExports.backup(journal)).journal.entries.single()
+        assertEquals(composed.metadata["drink_base_evidence"], restored.metadata["drink_base_evidence"])
+        assertEquals(350.0, restored.nutrients.getValue("energy_kcal")!!, 0.0)
+        assertEquals(addition.notes, restored.composition.single().notes)
         val nested = Recipes.log(Recipes.create("PRIVATE recipe", listOf(base.copy(kind = EntryKind.FOOD)), 1.0), 1.0, "serving", fixtureTime, ZoneId.of("UTC"))
         assertTrue(OpenFoodFactsExports.hasRecords(OpenFoodFactsExports.subset(listOf(nested))))
+    }
+
+    @Test fun offSubsetUsesUpdatedPortionScaleAndDoesNotInventLegacyCompositionEvidence() {
+        val reference = at(Entry(kind = EntryKind.DRINK, name = "Catalog drink", sourceReference = SourceReference(provider = "off", itemId = "off:12345678"),
+            nutrients = mapOf("energy_kcal" to 100.0), basisQuantity = 100.0, basisUnit = "ml"))
+        val consumed = Nutrition.scalePortion(reference, 150.0, "ml")
+        val edited = consumed.copy(quantity = 300.0, nutrients = mapOf("energy_kcal" to 300.0), metadata = consumed.metadata + ("nutrition_scale" to "3.0"))
+        val snapshots = OpenFoodFactsExports.subset(listOf(consumed, edited))["nutrition_snapshots"].asJsonArray
+        assertEquals(1, snapshots.size())
+        assertEquals(100.0, snapshots.single().asJsonObject["nutrients"].asJsonArray.single().asJsonObject["value"].asDouble, 0.0)
+        val composed = Nutrition.composeDrink(consumed, listOf(Entry(kind = EntryKind.FOOD, name = "Manual addition", nutrients = mapOf("energy_kcal" to 50.0))))
+        val legacy = composed.copy(metadata = composed.metadata - "drink_base_evidence")
+        val nutrient = OpenFoodFactsExports.subset(listOf(legacy))["nutrition_snapshots"].asJsonArray.single().asJsonObject["nutrients"].asJsonArray.single().asJsonObject
+        assertEquals(100.0, nutrient["value"].asDouble, 0.0)
+        assertTrue(nutrient["provider_code"].isJsonNull)
     }
 
     @Test fun heifAttachmentPreservesOriginalFormatBytesAndIntegrity() {

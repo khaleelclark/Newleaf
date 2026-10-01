@@ -57,9 +57,10 @@ internal fun EditorDraft.toEntries(settings:AppSettings):List<Entry> {
     val nutrition=nutrients.mapValues { (key,value)-> amount(value,nutrientLabels[key] ?: key,false) }
     val canonicalVolume=if(kind==EntryKind.DRINK)q?.let{canonicalPortion(base,it,unit,true)} else null
     val parent=EventTimes.at((base ?: Entry(id=id,kind=kind,name=name.trim())).copy(name=name.trim(),notes=notes,kind=kind,mealId=mealId,quantity=if(kind==EntryKind.WEIGHT)amount(weight,"Weight")else q,unit=unit,nutrients=nutrition,portionEvidence=evidence,tags=tags,ratings=ratings,photoPaths=photos,originalText=originalText,isFavorite=favorite,category=category,intensity=intensity,
-        nutrientEvidence=(base?.nutrientEvidence ?: emptyMap()) + nutrition.filter{it.key in overrides || base==null}.mapValues { (code,value)->NutrientEvidence(status=if(value==null)"unknown"else"known",origin=if(base?.source!="manual" && base!=null)"user_override"else"user_entered",unit=Units.nutrientUnit(code),basis="consumed") },
+        nutrientEvidence=(base?.let(::baseDrinkEvidence) ?: emptyMap()) + nutrition.filter{it.key in overrides || base==null}.mapValues { (code,value)->NutrientEvidence(status=if(value==null)"unknown"else"known",origin=if(base?.source!="manual" && base!=null)"user_override"else"user_entered",unit=Units.nutrientUnit(code),basis="consumed") },
         sourceReference=base?.sourceReference?.let{it.copy(overrides=it.overrides+overrides.associateWith{key->nutrition[key]?.toString() ?: "unknown"})},
         volumeMl=canonicalVolume,countsAsWater=kind==EntryKind.DRINK && water,
+        metadata=if(kind in listOf(EntryKind.FOOD,EntryKind.DRINK))rescaledMetadata(base,q,unit) else base?.metadata.orEmpty(),
         weightKg=if(kind==EntryKind.WEIGHT)amount(weight,"Weight")?.times(if(unit=="lb")0.45359237 else 1.0) else base?.weightKg,
         distanceMeters=if(kind==EntryKind.ACTIVITY)amount(distance,"Distance",false)?.times(if(settings.distanceUnit=="mi")1609.344 else 1000.0) else base?.distanceMeters,
         massGrams=if(kind==EntryKind.FOOD)q?.let{canonicalPortion(base,it,unit,false)}else base?.massGrams,
@@ -81,14 +82,20 @@ internal fun EditorDraft.toEntries(settings:AppSettings):List<Entry> {
         return listOf(parent.copy(componentIds=children.map{it.id},nutrients=emptyMap()))+children
     }
     if(kind==EntryKind.DRINK && items.isNotEmpty()) {
-        return listOf(Nutrition.composeDrink(parent,items).copy(metadata=parent.metadata+("drink_base_nutrients" to com.google.gson.Gson().toJson(parent.nutrients))))
+        return listOf(Nutrition.composeDrink(parent,items))
     }
-    return listOf(parent)
+    return listOf(if(kind==EntryKind.DRINK)parent.copy(composition=emptyList())else parent)
 }
 
 internal fun baseDrinkNutrition(entry:Entry):Map<String,Double?> {
     if(entry.kind!=EntryKind.DRINK || entry.composition.isEmpty())return entry.nutrients
     return runCatching { com.google.gson.Gson().fromJson<Map<String,Double?>>(entry.metadata["drink_base_nutrients"],object:com.google.gson.reflect.TypeToken<Map<String,Double?>>(){}.type) }.getOrNull() ?: entry.nutrients
+}
+
+internal fun baseDrinkEvidence(entry:Entry):Map<String,NutrientEvidence> {
+    if(entry.kind!=EntryKind.DRINK || entry.composition.isEmpty())return entry.nutrientEvidence
+    return runCatching { JournalCodec.gson.fromJson<Map<String,NutrientEvidence>>(entry.metadata["drink_base_evidence"],object:com.google.gson.reflect.TypeToken<Map<String,NutrientEvidence>>(){}.type) }.getOrNull()
+        ?: entry.nutrientEvidence.filterValues { it.origin!="composition" }
 }
 
 
@@ -107,6 +114,18 @@ internal fun canonicalPortion(source:Entry?,quantity:Double,unit:String,volume:B
     val sourceAmount=source?.quantity
     val sourceCanonical=if(volume)source?.volumeMl else source?.massGrams
     return if(source!=null && unit.equals(source.unit,true) && sourceAmount!=null && sourceAmount>0 && sourceCanonical!=null)sourceCanonical*quantity/sourceAmount else null
+}
+
+/** Keep the source reference basis consistent when a historical consumed portion changes. */
+internal fun rescaledMetadata(source:Entry?,quantity:Double?,unit:String):Map<String,String> {
+    val metadata=source?.metadata.orEmpty().toMutableMap()
+    val scale=metadata["nutrition_scale"]?.toDoubleOrNull() ?: return metadata
+    val original=source?.quantity
+    val factor=if(source!=null && quantity!=null && original!=null && original>0)portionFactor(source,original,source.unit,quantity,unit)else null
+    val revised=factor?.times(scale)
+    if(revised!=null && revised>0 && revised.isFinite())metadata["nutrition_scale"]=revised.toString()
+    else metadata.remove("nutrition_scale")
+    return metadata
 }
 
 internal fun portionFactor(source:Entry?,oldQuantity:Double,oldUnit:String,newQuantity:Double,newUnit:String):Double? {

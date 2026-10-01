@@ -46,7 +46,10 @@ object Nutrition {
         require(drink.kind == EntryKind.DRINK)
         val all = listOf(drink.copy(composition = emptyList())) + components
         val totals = all(all)
-        return drink.copy(metadata = drink.metadata + ("drink_base_nutrients" to JournalCodec.toJson(drink.nutrients)), composition = components.map { JournalCodec.entry(JournalCodec.toJson(it)).copy(isLibrary = true) }, nutrients = totals.mapValues { it.value.knownSum },
+        return drink.copy(metadata = drink.metadata + mapOf(
+            "drink_base_nutrients" to JournalCodec.toJson(drink.nutrients),
+            "drink_base_evidence" to JournalCodec.toJson(drink.nutrientEvidence)),
+            composition = components.map { JournalCodec.entry(JournalCodec.toJson(it)).copy(isLibrary = true) }, nutrients = totals.mapValues { it.value.knownSum },
             nutrientEvidence = totals.mapValues { (code, coverage) -> NutrientEvidence(
                 status = when { coverage.knownSum == null -> "unknown"; coverage.estimatedContributors > 0 -> "estimated"; else -> "known" }, origin = "composition", unit = Units.nutrientUnit(code),
                 basis = "consumed; known=${coverage.knownContributors}/${coverage.totalContributors}",

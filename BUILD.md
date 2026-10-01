@@ -26,7 +26,11 @@ The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. A connected Androi
 
 This produces an unsigned APK. Sign it using Android SDK `apksigner` with a private signing keystore, then verify the signature. Do not check a keystore or password into this repository. Future releases must use the same key and increment `versionCode` to update in place without clearing the journal.
 
-The initial handoff's installable signed APK, checksum, signing details, and validation evidence belong in `releases/`. Release documentation records exactly what was built and tested, including unconfigured nutrition providers and device testing limits.
+For the repeatable signed handoff, run `scripts/release.sh`. It builds the minified release and mapped instrumentation APK, runs release unit tests and lint, then signs and verifies the APK. It uses a persistent private key under `~/.local/share/newleaf/signing/`; back up that directory securely outside version control. The key is deliberately absent from source packages. `scripts/package.py` checks the named handoff files and produces the source ZIP and checksums after the validation record is complete.
+
+Mapped release instrumentation uses `-Pnewleaf.testBuildType=release`. Sign the resulting `app/build/outputs/apk/androidTest/release/app-release-androidTest.apk` with the same release key, install it and the release APK on the chosen test device, then run `adb -s DEVICE_SERIAL shell am instrument -w -r com.khaleel.newleaf.test/androidx.test.runner.AndroidJUnitRunner`. Kotlin, coroutine and tracing runtime ABI keep rules preserve libraries shared with this test runner. Do not install or test against unrelated connected devices.
+
+The installable signed APK, checksum, public signing details, mapping file and validation evidence belong in `releases/`. Release documentation records exactly what was built and tested, including unconfigured nutrition providers and device testing limits.
 
 ## Nutrition service
 

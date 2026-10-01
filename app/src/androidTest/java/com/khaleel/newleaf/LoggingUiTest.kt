@@ -26,7 +26,7 @@ class LoggingUiTest {
         ui.onNodeWithText("+  Log your day").performClick()
         ui.onNodeWithText("Food").performScrollTo().performClick()
         ui.onNodeWithText("Name").performTextInput("UI fixture: name-only food")
-        ui.onNodeWithText("Save food").performScrollTo().performClick()
+        ui.onNodeWithText("Save food").assertIsDisplayed().performClick()
         ui.waitUntil(10_000) {
             ui.onAllNodesWithText("UI fixture: name-only food").fetchSemanticsNodes().isNotEmpty()
         }

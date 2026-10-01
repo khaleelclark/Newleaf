@@ -5,3 +5,8 @@
 -keepattributes Signature,InnerClasses,EnclosingMethod
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
+# The Android test runner calls this shared runtime library directly.
+-keep class androidx.tracing.Trace { *; }
+# Preserve the Kotlin runtime ABI shared with the mapped release test APK.
+-keep class kotlin.** { *; }
+-keep class kotlinx.coroutines.** { *; }
