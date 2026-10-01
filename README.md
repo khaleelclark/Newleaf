@@ -6,7 +6,7 @@ Newleaf is a personal Android journal for meals, drinks, activity, body weight, 
 
 ## Project status
 
-The Android implementation and signed release candidate are present. A specialist team built the Android experience, journal/export layer, and free nutrition lookup. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; final free-only build verification is in progress.
+Newleaf 0.1.0 is available as a signed Android APK with a source archive, installation instructions and fictional export examples. A specialist team built the Android experience, journal/export layer, and free nutrition lookup. [Release validation](releases/VALIDATION.md) records actual tests and remaining provider/device checks; the free-only release passed 108 JVM tests, 17 mapped release device tests and 20 optional gateway tests.
 
 Project location: `/home/phoenix/khaleel/Newleaf`.
 
@@ -48,7 +48,7 @@ The product document sets scope; the other documents define the behavior needed 
 
 Open Food Facts is free and needs no user account or key for product lookup. USDA is free with a data.gov API key; enter your personal key in Settings → Nutrition sources. Newleaf protects it locally and excludes it from exports/backups. A hosted gateway is optional, so online nutrition does not require paid hosting.
 
-The owner's USDA key passed two read-only official API calls, for search and details. The key is not embedded in the APK. Final free-only release validation and actual S25 Ultra installation/usability remain to be completed. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
+The owner's USDA key passed two read-only official API calls, for search and details. The key is not embedded in the APK. Final free-only emulator validation is complete; actual S25 Ultra installation/usability remains to be checked. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
 
 Nutritionix's public free tier was withdrawn, so that provider is disabled. Describe meal uses bounded, reviewed USDA matches rather than a paid natural-language service. No subscription, paid account, or public gateway deployment is part of this release.
 
