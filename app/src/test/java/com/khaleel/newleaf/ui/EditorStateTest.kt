@@ -10,6 +10,23 @@ import java.time.LocalDate
 
 class EditorStateTest {
     private val settings=AppSettings()
+    @Test fun switchingBeverageKeepsVolumeAndEventButDropsPreviousProductsNutrition() {
+        val old=Entry(kind=EntryKind.DRINK,name="Water",quantity=16.0,unit="fl oz",countsAsWater=true,
+            version=3,nutrients=mapOf("energy_kcal" to 0.0),source="Open Food Facts",sourceReference=SourceReference(provider="Open Food Facts",barcode="012345678905"))
+        val draft=EditorDraft.edit(old,listOf(old),settings).copy(notes="With breakfast",category="Breakfast")
+        val entry=selectDrink(draft,"Coffee").toEntries(settings).single()
+        assertEquals(old.id,entry.id)
+        assertEquals(old.createdAt,entry.createdAt)
+        assertEquals(4,entry.version)
+        assertEquals(old.occurredAt,entry.occurredAt)
+        assertEquals(16*29.5735295625,entry.volumeMl!!,0.000001)
+        assertEquals("Breakfast",entry.category)
+        assertEquals("With breakfast",entry.notes)
+        assertFalse(entry.countsAsWater)
+        assertNull(entry.nutrients["energy_kcal"])
+        assertNull(entry.sourceReference)
+        assertEquals("manual",entry.source)
+    }
     @Test fun nameOnlyFoodKeepsUnknownNutrition() {
         val entries=EditorDraft.new(EntryKind.FOOD,LocalDate.parse("2026-09-30"),settings).copy(name="Toast",time="12:30").toEntries(settings)
         assertEquals("2026-09-30",entries.single().localDate)

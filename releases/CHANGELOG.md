@@ -1,3 +1,13 @@
+# Newleaf 0.1.3
+
+Tracker-based daily logging inspired by Simple's documented food/drink/movement flow. See [VALIDATION.md](VALIDATION.md) for current verification.
+
+- Food, Drinks and Movement cards open the relevant form directly. Scan is a visible header action; the category/review/one-Add flow is preserved.
+- Food starts with a short description and optional meal category. Amount, calories and advanced details stay under More details; one Save remains visible above the keyboard.
+- Drinks offer Water/Coffee/Tea/Juice/Milk/Other and volume/unit together. Other supports custom names. Changing beverage retains the amount but clears the prior product's nutrition and water classification when appropriate.
+- Weekday selection and Calendar make earlier dates reachable. More retains the full entry chooser and saved drafts; History search/export is secondary.
+- Same signing identity and version code 5 support an in-place update from 0.1.2. Data, exports, protected credentials and scanner failure/cancel safeguards retain their contracts.
+
 # Newleaf 0.1.2
 
 A further simplification after the owner tested 0.1.1. See [VALIDATION.md](VALIDATION.md) for current release evidence and device limits.

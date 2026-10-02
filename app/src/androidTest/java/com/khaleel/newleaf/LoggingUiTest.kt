@@ -18,7 +18,7 @@ class LoggingUiTest {
         val fixtureName = "UI fixture: name-only food ${java.util.UUID.randomUUID()}"
         ui.waitUntil(15_000) {
             ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty() ||
-                ui.onAllNodesWithText("Log").fetchSemanticsNodes().isNotEmpty()
+                ui.onAllNodesWithText("More").fetchSemanticsNodes().isNotEmpty()
         }
         if (ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty()) {
             ui.onNodeWithText("Start your journal").performScrollTo().performClick()
@@ -26,7 +26,7 @@ class LoggingUiTest {
         ui.onNodeWithText("+ 16 oz water").performScrollTo().performClick()
         ui.onNodeWithText("16 US fl oz water logged").assertIsDisplayed()
         ui.onNodeWithText("Undo").performClick()
-        ui.onNodeWithText("Log").performClick()
+        ui.onNodeWithText("More").performClick()
         ui.onNodeWithText("Meal").assertDoesNotExist()
         ui.onNodeWithText("Weight").assertDoesNotExist()
         ui.onNodeWithText("More ways to log").assertExists()
@@ -37,19 +37,21 @@ class LoggingUiTest {
         ui.onNodeWithText("Notes & photos").assertDoesNotExist()
         ui.onNodeWithText("Nutrition & saved food").assertDoesNotExist()
         ui.onNodeWithText("Change date & time").assertDoesNotExist()
-        ui.onNodeWithText("What did you have?").assertExists()
-        ui.onNodeWithText("Amount (optional)").assertExists()
-        ui.onNodeWithText("Calories (optional)").assertExists()
+        ui.onNodeWithText("What did you eat?").assertExists()
+        ui.onNodeWithText("Amount (optional)").assertDoesNotExist()
+        ui.onNodeWithText("Calories (optional)").assertDoesNotExist()
         ui.onNodeWithText("Find a food").assertExists()
         ui.onNodeWithText("Manual").assertDoesNotExist()
         ui.onNodeWithText("Search").assertDoesNotExist()
         ui.onNodeWithText("Barcode").assertDoesNotExist()
         ui.onNodeWithText("More details").performScrollTo().performClick()
+        ui.onNodeWithText("Amount (optional)").assertExists()
+        ui.onNodeWithText("Calories (optional)").assertExists()
         ui.onNodeWithText("Notes & photos").assertExists()
         ui.onNodeWithText("Nutrition & saved food").assertExists()
         ui.onNodeWithText("Change date & time").assertExists()
         ui.onNodeWithText("Hide more details").performScrollTo().performClick()
-        ui.onNodeWithText("Name").performScrollTo().performTextInput(fixtureName)
+        ui.onNodeWithText("Food or meal").performScrollTo().performTextInput(fixtureName)
         ui.onNodeWithText("Save food").assertIsDisplayed().performClick()
         ui.waitUntil(10_000) {
             ui.onAllNodesWithText(fixtureName).fetchSemanticsNodes().isNotEmpty()

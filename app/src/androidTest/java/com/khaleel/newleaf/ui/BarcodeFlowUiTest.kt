@@ -121,7 +121,8 @@ class BarcodeFlowUiTest {
         val (draft,saves)=editor(EntryKind.DRINK,openBarcode=false) { error("Manual flow must not look up a provider") }
         ui.onNodeWithText("Notes (optional)").assertDoesNotExist()
         ui.onNodeWithText("Calories · kcal (whole consumed portion)").assertDoesNotExist()
-        ui.onNodeWithText("Drink name").performTextReplacement("Coffee")
+        ui.onNodeWithContentDescription("Drink: Water").performClick()
+        ui.onNodeWithText("Coffee").performClick()
         ui.onNodeWithText("Volume (optional)").performTextInput("16")
         ui.onNodeWithText("Save drink").assertIsDisplayed().performClick()
         ui.runOnIdle {

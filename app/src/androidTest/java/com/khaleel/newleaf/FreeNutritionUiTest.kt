@@ -16,7 +16,7 @@ class FreeNutritionUiTest {
     private fun openJournal() {
         ui.waitUntil(15_000) {
             ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty() ||
-                ui.onAllNodesWithText("Log").fetchSemanticsNodes().isNotEmpty()
+                ui.onAllNodesWithText("More").fetchSemanticsNodes().isNotEmpty()
         }
         if (ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty()) {
             ui.onNodeWithText("Start your journal").performScrollTo().performClick()
@@ -25,7 +25,7 @@ class FreeNutritionUiTest {
 
     @Test fun describeExplainsItemListsAndKeepsTypedInputForManualContinuation() {
         openJournal()
-        ui.onNodeWithText("Log").performClick()
+        ui.onNodeWithText("More").performClick()
         ui.onNodeWithText("More ways to log").performScrollTo().performClick()
         ui.onNodeWithText("Meal").performScrollTo().performClick()
         ui.onNodeWithText("Find a food").performScrollTo().performClick()

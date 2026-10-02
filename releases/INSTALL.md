@@ -1,8 +1,8 @@
-# Install and use Newleaf 0.1.2
+# Install and use Newleaf 0.1.3
 
 ## On your Galaxy S25 Ultra
 
-1. Download `Newleaf-0.1.2.apk` from the Project files to your phone.
+1. Download `Newleaf-0.1.3.apk` from the Project files to your phone.
 2. Open the file through Samsung My Files or your download notification.
 3. If Android asks, allow app installation for the app you used to open this file, then tap Install.
 4. If you already have Newleaf installed, install this update over it; do not uninstall. Your local journal and source credentials stay on the device.
@@ -14,15 +14,17 @@ No diary account is needed. The app starts empty; fictional sample exports are s
 
 ## Daily use
 
-- Today shows a small summary and your day's entries. Log and Scan stay visible at the bottom.
-- Tap Scan to open the camera immediately and log for today. Point it at a packaged product's barcode; a match opens the product automatically. Choose Breakfast, Lunch, Dinner, Snack or Other, check the amount you had, then tap Add to journal. There is one save step. Cancel saves nothing.
-- If camera access is declined or a product cannot be found, type the barcode, scan again or tap Enter it yourself. No nutrition value is guessed.
-- Tap Log, then Food, Drink or Activity. Enter what you had or did and tap Save. Amount, calories and meal category can be left blank. Optional information remains optional.
-- Find a food opens name search or barcode lookup when you want catalog information. Search needs your free USDA key; scanning does not.
-- Tap + 16 oz water for a quick water entry, then Undo if needed. Use Log → Drink for a different amount.
-- More ways to log contains a whole Meal, Weight, Steps, How I felt and Daily note. Saved drafts are available there too.
-- Tap an entry to view or edit it. Detailed nutrition and sources are under Details.
-- History lets you browse other dates; Trends shows recorded totals. Settings holds Saved foods & recipes, units, goals/reminders, source setup and exports/backups.
+- Today has Food, Drinks and Movement cards. Tap Log food, Log drink or Log activity to go straight to that entry.
+- For food, type what you ate (a food name or a short meal description), then Save food. Meal category is optional. More details contains optional amount, calories, nutrition, notes/photos and date/time. Typed text alone does not estimate nutrition.
+- For drinks, choose Water, Coffee, Tea, Juice, Milk or Other, enter an optional volume, then Save drink. Other allows any name. Changing the beverage clears the previous product's nutrition; coffee is kept separate from water.
+- Tap + 16 oz water for one quick water entry, with Undo. Log drink accepts custom volumes.
+- Log activity opens distance/time; Add steps opens the day's step total.
+- Scan is visible beside Settings. It opens the camera immediately for today. Point it at a packaged product barcode; a match opens automatically. Choose Breakfast/Lunch/Dinner/Snack/Other, review what you had, and tap Add to journal once. Cancel saves nothing.
+- If camera access is declined or no product is found, type the barcode, scan again or use Enter it yourself. Missing nutrition stays unknown.
+- Tap a day in the week strip to browse or log on that date; Calendar reaches any other date. Scan always returns to today.
+- More keeps the full logging chooser and Saved drafts. More ways to log includes multi-item Meal, Weight, Steps, Check-in and Daily note.
+- Find a food opens optional USDA search or barcode lookup. Search needs your free USDA key; barcode scanning does not. The multi-item Meal editor also supports the existing assisted Food list lookup.
+- Tap an entry to view/edit it. Settings holds Saved foods & recipes, units, goals/reminders, source setup and exports/backups. History keeps search/export under Search & export; Trends shows recorded totals.
 
 The app asks for camera permission only when needed. Photo selection uses Android's picker. Notification permission is needed only for optional check-in reminders. Manual logging needs no location, step-sensor, or health-account access.
 

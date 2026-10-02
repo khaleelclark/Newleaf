@@ -130,9 +130,15 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
     ModalBottomSheet(sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),onDismissRequest={if(!busy)onClose()},containerColor=MaterialTheme.colorScheme.background,dragHandle={BottomSheetDefaults.DragHandle()},modifier=Modifier.fillMaxHeight(.95f)) {
         Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
         Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal=22.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { Text(if(!draft.isNew)"Edit ${kindName(draft.kind).lowercase()}" else if(draft.kind in listOf(EntryKind.FOOD,EntryKind.DRINK,EntryKind.MEAL))"What did you have?"else if(draft.kind==EntryKind.ACTIVITY)"What did you do?"else "Add ${kindName(draft.kind).lowercase()}",style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f));TextButton(onClick=onClose,enabled=!busy){Text("Close")} }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) { Text(if(!draft.isNew)"Edit ${kindName(draft.kind).lowercase()}" else if(draft.kind==EntryKind.FOOD)"What did you eat?"else if(draft.kind==EntryKind.DRINK)"What did you drink?"else if(draft.kind==EntryKind.MEAL)"What did you have?"else if(draft.kind==EntryKind.ACTIVITY)"What did you do?"else "Add ${kindName(draft.kind).lowercase()}",style=MaterialTheme.typography.headlineMedium,modifier=Modifier.weight(1f));TextButton(onClick=onClose,enabled=!busy){Text("Close")} }
             Caption("${draft.date} · ${draft.time}")
-            if(draft.kind!=EntryKind.ACTIVITY)Field(if(draft.kind==EntryKind.MEAL)"Meal name"else if(draft.kind==EntryKind.DRINK)"Drink name"else "Name",draft.name,{onChange(draft.copy(name=it,water=if(draft.kind==EntryKind.DRINK)it.equals("water",true)else draft.water))})
+            if(draft.kind==EntryKind.DRINK) {
+                val commonDrinks=listOf("Water","Coffee","Tea","Juice","Milk")
+                SelectField("Drink",draft.name.takeIf{it in commonDrinks} ?: "Other",commonDrinks+"Other") { next->
+                    onChange(selectDrink(draft,if(next=="Other")""else next))
+                }
+                if(draft.name !in commonDrinks)Field("Drink name",draft.name,{onChange(draft.copy(name=it,water=it.equals("water",true)))})
+            } else if(draft.kind!=EntryKind.ACTIVITY)Field(if(draft.kind==EntryKind.MEAL)"Meal name"else if(draft.kind==EntryKind.FOOD)"Food or meal"else "Name",draft.name,{onChange(draft.copy(name=it))},lines=if(draft.kind==EntryKind.FOOD)3 else 1)
             if(draft.kind in listOf(EntryKind.MEAL,EntryKind.RECIPE,EntryKind.TEMPLATE)) {
                 if(draft.kind==EntryKind.MEAL)SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
                 Section(if(draft.kind==EntryKind.RECIPE)"Ingredients" else "Your meal")
@@ -165,11 +171,11 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 if(draft.saveAs=="recipe" && draft.kind==EntryKind.MEAL){Field("Yield · servings",draft.servings,{onChange(draft.copy(servings=it))},numeric=true);Field("Final cooked weight · g",draft.yieldGrams,{onChange(draft.copy(yieldGrams=it))},numeric=true)}
             }
             if(draft.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
-                if(draft.kind==EntryKind.FOOD)Field("Amount (optional)",draft.quantity,{onChange(changePortion(draft,it,draft.unit))},numeric=true)
-                else Field("Volume (optional)",draft.quantity,{onChange(changePortion(draft,it,draft.unit))},numeric=true)
-                SelectField("Unit",draft.unit,(listOf(draft.unit)+if(draft.kind==EntryKind.DRINK)listOf("fl oz","ml","serving")else listOf("serving","g","oz","piece","cup"))+draft.base?.portionDefinitions.orEmpty().map{it.label}){next->onChange(changePortion(draft,convertEditorQuantity(draft,next),next))}
-                Field("Calories (optional)",draft.nutrients["energy_kcal"].orEmpty(),{onChange(draft.copy(nutrients=draft.nutrients+("energy_kcal" to it),overrides=(draft.overrides+"energy_kcal").distinct()))},numeric=true)
-                SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
+                if(draft.kind==EntryKind.DRINK)PortionFields(draft,onChange)
+                if(draft.kind==EntryKind.FOOD) {
+                    SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
+                    if(draft.quantity.isNotBlank() || draft.nutrients["energy_kcal"].orEmpty().isNotBlank())Caption(listOfNotNull(draft.quantity.takeIf{it.isNotBlank()}?.let{"$it ${draft.unit}"},draft.nutrients["energy_kcal"]?.takeIf{it.isNotBlank()}?.let{"$it kcal"}).joinToString(" · "))
+                }
                 if(!findingFood)TextButton(onClick={findingFood=true;selectMethod("Search")}){Text("Find a food")}
                 else {
                     SelectField("Find by",if(lookupMode=="Barcode")"Barcode"else"Name",listOf("Name","Barcode")){selectMethod(if(it=="Barcode")"Barcode"else"Search")}
@@ -210,6 +216,9 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
             if(draft.kind==EntryKind.NOTE) { Choices(listOf("unmarked","partial","complete"),draft.completeness){onChange(draft.copy(completeness=it))};Caption("Daily logging completeness is your choice; it is never inferred.") }
             val additionalDetails: @Composable () -> Unit = {
                 if(draft.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
+                if(draft.kind==EntryKind.FOOD)PortionFields(draft,onChange)
+                Field("Calories (optional)",draft.nutrients["energy_kcal"].orEmpty(),{onChange(draft.copy(nutrients=draft.nutrients+("energy_kcal" to it),overrides=(draft.overrides+"energy_kcal").distinct()))},numeric=true)
+                if(draft.kind==EntryKind.DRINK)SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
                 SelectField("Log as",if(draft.kind==EntryKind.DRINK)"Drink"else"Food",listOf("Food","Drink")){onChange(draft.copy(kind=if(it=="Drink")EntryKind.DRINK else EntryKind.FOOD,water=it=="Drink" && draft.name.equals("water",true)))}
                 Disclosure("Nutrition & saved food") {
                 nutrientLabels.filterKeys{it!="energy_kcal"}.forEach{(key,label)->Field("$label (optional)",draft.nutrients[key].orEmpty(),{onChange(draft.copy(nutrients=draft.nutrients+(key to it),overrides=(draft.overrides+key).distinct()))},numeric=true)}
@@ -258,6 +267,16 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
         else onChange(draft.copy(items=if(itemEditing!=null)draft.items.map{if(it.id==itemEditing)item.copy(id=it.id)else it}else draft.items+item))
         itemDialog=false;selectingStandalone=false
     }
+}
+
+@Composable
+private fun PortionFields(draft:EditorDraft,onChange:(EditorDraft)->Unit) {
+    val amount: @Composable (Modifier)->Unit = { modifier->Field(if(draft.kind==EntryKind.DRINK)"Volume (optional)"else"Amount (optional)",draft.quantity,{onChange(changePortion(draft,it,draft.unit))},modifier,numeric=true) }
+    val unit: @Composable (Modifier)->Unit = { modifier->
+        Column(modifier) {SelectField("Unit",draft.unit,(listOf(draft.unit)+if(draft.kind==EntryKind.DRINK)listOf("fl oz","ml","serving")else listOf("serving","g","oz","piece","cup"))+draft.base?.portionDefinitions.orEmpty().map{it.label}){next->onChange(changePortion(draft,convertEditorQuantity(draft,next),next))}}
+    }
+    if(androidx.compose.ui.platform.LocalDensity.current.fontScale>1.3f)Column(verticalArrangement=Arrangement.spacedBy(10.dp)){amount(Modifier);unit(Modifier)}
+    else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=androidx.compose.ui.Alignment.Bottom) {amount(Modifier.weight(1f));unit(Modifier.weight(1f))}
 }
 
 @Composable

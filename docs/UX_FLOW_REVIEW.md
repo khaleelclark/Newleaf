@@ -1,24 +1,16 @@
-# Newleaf everyday logging revision
+# Simple-inspired daily flow
 
-The owner tested 0.1.1 and still found it confusing. The October 2 direction is simple, human-readable daily logging and a main-screen barcode action that opens one reviewed journal Add with a chosen meal category. More disclosure buttons alone do not address that complaint.
+The owner tested 0.1.2 and requested a better flow inspired by [Simple](https://simple.life). Its official [food guide](https://help.simple.life/en/articles/9887898-how-to-log-and-edit-food) begins with typing what was eaten, its [drink guide](https://help.simple.life/en/articles/9887906-how-to-log-and-edit-drinks) uses drink selection and a final save, and its [tracker overview](https://help.simple.life/en/articles/9887852-simple-life-overview-of-main-features) gives each tracker a direct action.
 
-## Implemented editor changes
+## Applied to Newleaf 0.1.3
 
-- Food and drink ask “What did you have?” and show name, optional amount/volume, unit dropdown, optional calories, optional meal dropdown and one Save. Name-only entries remain useful.
-- No lookup method chips appear initially. Find a food opens Name/Barcode choices, with Food list additionally available in multiple-item meals. Back to entry abandons lookup while retaining the draft and barcode.
-- Activity uses one type dropdown plus distance/time. Other supports a custom name; intensity is secondary.
-- Product review shows one prominent product name, label-reference amount, unit dropdown and calorie preview. Food/Drink is easy to find. Advanced nutrition, amount evidence and source attribution share one Details group.
-- Entry detail shows name/time/portion/calories before one primary Edit; full nutrition/source/technical data are behind Details. Favorites, recipes, notes, photos, custom categories, dates/time zones, exports and restore remain accessible in secondary locations.
-- Saved foods & recipes opens Library from Settings; nutrition setup starts collapsed; masked USDA key, Keystore protection, optional gateway and privacy/export safeguards retain their contracts.
+- Food, Drinks and Movement cards answer where to start. Log food/Log drink/Log activity each go directly to a form; the entry-kind chooser is now secondary in More.
+- Food asks What did you eat? with one text field and optional meal category. Save food works with just text. Amount/calories live in More details; supplied amounts/calories remain visible in a compact summary. There is no automatic nutrition inference from free text.
+- Drinks offer familiar beverage choices plus Other for any custom name. Volume/unit are together, stacking at larger fonts. Beverage changes preserve event/volume but clear stale nutrition/source identity and update water classification.
+- A week strip with full-date accessibility labels and Calendar supports browsing and logging on an explicit day. Scan stays visible in the header and returns to today.
+- Scan still captures/looks up automatically, requires an explicit category, reviews amount/type and saves through one Add to journal. Unknown amounts/nutrients, cancellation, busy locks, retry and manual fallback retain their contracts.
+- More retains full logging choices and saved drafts. Settings retains library, source setup, exports, backups, photos and credentials. History search/export moves into one secondary group.
 
-Today uses Log and Scan at the bottom, one compact Calories/Water/Steps summary and one + 16 oz water shortcut. Custom amounts remain in Log → Drink. Less frequent entries including Daily note remain under More ways to log; date navigation stays in History.
+## Verification
 
-## Shared quick-scan contract
-
-`PortionDialog(candidate, original, allowAdditions=true, quickLog=false, busy=false, saveError=null, onDismiss, onConfirm)` preserves ordinary-editor calls. With quickLog=true it shows Log scanned item and Add to journal; a required Category dropdown starts blank with “Choose a category” and offers Breakfast/Lunch/Dinner/Snack/Other. Add is disabled until the user selects one; ordinary manual-entry categories remain optional. The returned Entry includes the chosen category and Food/Drink kind. No category is inferred and no journal save happens within the dialog. Parent QuickScan owns capture, automatic lookup and persistence after Add. Busy plus an immediate local submission guard blocks duplicate clicks and dismissal; saveError remains visible and unlocks retry when busy clears.
-
-Missing product amounts/nutrients remain blank/null. A populated amount is a label reference requiring review. Default nested-editor mode still confirms only the draft before its separate Save. Existing fake capture and lookup hooks remain offline.
-
-## Validation status
-
-Source-level review and required-file verification are complete. Updated existing Android tests cover new initial/editor/detail hierarchy, lookup/manual continuity and quick-scan category/type/one-add/unknown/busy/error retry. The existing JVM editor-state regression now verifies category preservation through lookup population. No compiler, Gradle, emulator, real provider, private credential or Git operations were performed by the specialist. Parent integration passed 120 JVM tests and 31 signed-release Android emulator tests. Actual main camera launch/denial/Back and keyboard/large-text/dark checks passed at the shown configuration. Final specialist screenshot review and release packaging remain pending. Physical Samsung scan/network behavior and TalkBack remain phone checks; see [validation](../releases/VALIDATION.md).
+See [current release validation](../releases/VALIDATION.md). HomeFlowUiTest exercises direct food text/one durable save, drink selection/volume/water isolation, explicit-day food logging and activity/steps cancellation. Existing scanner and persistence/portability regressions remain required. Source review does not replace compiler or device checks; phone scanning and TalkBack are separate target-device checks.

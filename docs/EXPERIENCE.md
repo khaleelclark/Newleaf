@@ -1,6 +1,6 @@
 # Experience and visual specification
 
-Further simplicity revision — October 2, 2026. Editor changes are implemented; parent compilation, device validation and main-screen direct-scan integration are pending.
+Simple-inspired tracker revision — October 2, 2026. Current verification is recorded in [release validation](../releases/VALIDATION.md).
 
 ## 1. Interaction principles
 
@@ -13,31 +13,24 @@ Further simplicity revision — October 2, 2026. Editor changes are implemented;
 
 ## 2. Navigation
 
-Bottom navigation: Today, History, Trends, with selected-state accessibility semantics. The persistent “Log” control opens three main choices: Food, Drink, Activity. “More ways to log” reveals Meal, Weight, Steps, Check-in, and Daily note. Meal is the multiple-item flow; Food supports a name-only entry. Saved drafts can be continued from a collapsed Saved drafts section, keeping the main choices clear on a populated installation.
+Bottom navigation: Today, History, Trends and More. Today offers Food → Log food, Drinks → Log drink/one water shortcut, and Movement → Log activity/Add steps. Each opens its form directly. More retains the full Food/Drink/Activity chooser, More ways to log (multi-item Meal, Weight, Steps, Check-in, Daily note), and recoverable Saved drafts.
 
-The main-screen “Scan” control opens the direct flow: capture → automatic Open Food Facts lookup → “Log scanned item” → “Add to journal”. The review lets the user choose a required Breakfast/Lunch/Dinner/Snack/Other category and Food/Drink classification. No record is created until Add to journal.
+Scan is visible in the header beside Settings and returns to Today. Capture → automatic Open Food Facts lookup → Log scanned item → Add to journal. The user explicitly chooses Breakfast/Lunch/Dinner/Snack/Other and reviews Food/Drink classification and amount. No record is created until Add to journal.
 
 Library opens through “Saved foods & recipes” in Settings. Settings contains units, goals, reminders, appearance, privacy/source information, export, backup/restore, and data deletion. Export is also reachable from History so it is not buried.
 
 ```mermaid
 flowchart TD
-    Today --> Log
+    Today --> LogFood[Log food]
+    Today --> LogDrink[Log drink]
+    Today --> LogActivity[Log activity]
+    Today --> Scan
+    LogFood --> Description[What did you eat?]
+    Description --> SaveFood[Save food]
+    Scan --> Review[Product + category + amount]
+    Review --> Add[Add to journal]
+    More --> FullChooser[Full chooser + saved drafts]
     History --> EntryDetail
-    Today --> EntryDetail
-    Log --> Food
-    Log --> Drink
-    Log --> Activity
-    Log --> Weight
-    Log --> Steps
-    Log --> CheckIn
-    Food --> Search
-    Food --> Barcode
-    Food --> Describe
-    Food --> Saved
-    Food --> Manual
-    Food --> Review
-    Review --> Save
-    History --> Export
     Settings --> Export
     Settings --> BackupRestore
 ```
@@ -50,27 +43,32 @@ Ask camera permission before opening the scanner when Scan is selected. Denial s
 
 ## 4. Today
 
-Proposed hierarchy:
+Current hierarchy:
 
 ```text
-Newleaf                         Settings
-Today, Thursday Oct 1
+Newleaf                    Scan   Settings
+Today                         Calendar
+Mon Tue Wed Thu Fri Sat Sun
 
-Calories 840     Water 32 oz     Steps: Add
+Food
+What did you eat? / known calories today
+[Log food]
 
-[+ 16 oz water]
+Drinks
+Water logged / unknown; optional water goal
+[Log drink] [+ 16 oz water]
+
+Movement
+Steps logged / not yet logged
+[Log activity] [Add steps]
 
 Your day
-08:15  Breakfast       Eggs and toast
-       View details · Add how you felt
-09:00  Coffee          12 US fl oz
-12:30  Lunch           Chicken sandwich
-17:10  Walk            1.8 mi · 35 min
+Saved entries, with their time and amount
 
-[Today] [History] [Trends]       [Log] [Scan]
+[Today] [History] [Trends] [More]
 ```
 
-Values above are layout examples, not a nutrition recommendation. Today keeps one compact Calories/Water/Steps summary, one 16 oz quick-water shortcut, and the timeline. Empty state says “Nothing logged yet”. Custom drink sizes and Daily note remain in Log; date navigation is in History. If goals are off, show plain totals rather than empty progress rings. A missing step entry displays Add; explicit zero displays 0.
+The week strip has explicit full-date accessibility labels and selected state. Calendar reaches any date. Selecting a date moves to Today or History and all direct tracker entry forms use that date; Scan deliberately returns to Today. Tracker summaries preserve unknowns and partial calorie coverage. Water counts only explicitly classified water. No goal ring appears unless a goal is set.
 
 Timeline cards show time, name, a compact portion/summary, and a small type indicator. Source and detailed nutrition live behind a tap. A meal can expand into its food and drink components; its calorie summary includes linked drinks once. Standalone drink rows remain visible, with a subtle meal association when applicable.
 
@@ -78,11 +76,11 @@ Timeline cards show time, name, a compact portion/summary, and a small type indi
 
 ### Everyday entry and search
 
-Food and drink entry begin with “What did you have?”, a name, optional amount/volume, a unit dropdown, optional calories, and an optional meal dropdown. A name-only entry is valid. One Save action remains above the keyboard. No Manual/Search/Barcode method menu appears initially. “Find a food” reveals a Find by dropdown with Name or Barcode; meal composition also offers Food list for assisted multi-item lookup. “Back to entry” abandons lookup without discarding typed entry fields or the retained barcode.
+Food entry begins with “What did you eat?”, a multiline Food or meal field and an optional meal category. A short description is a valid local entry; typing a description does not infer calories or individual ingredients. A single Save food action remains above the keyboard. Amount, unit and calories are inside More details. If a provider/reusable entry already supplied amount/calories, a summary remains visible so populated data is not concealed.
 
-Amount units and categories use readable dropdowns. Meal categories start blank and include Breakfast, Lunch, Dinner, Snack and Other. Existing custom categories remain selectable; the multiple-item meal editor retains custom category input under More details. Search requests remain explicit, with loading, scoped failure and review states. Choosing a match opens portion review; explicit Confirm updates the editor draft, then Save records it.
+Find a food reveals Name/Barcode lookup only on request; multi-item Meal also offers the existing assisted Food list matching. Back to entry abandons lookup without discarding typed fields or the retained barcode. Search remains explicit; choosing a match opens review, Confirm updates the draft, and Save records it.
 
-More details contains nutrition beyond calories, favorites/library, classification, amount evidence, custom units, notes/photos and date/time. Drink additions remain there and contribute once. Source details are secondary. Missing values remain unknown.
+Meal categories start blank with Breakfast/Lunch/Dinner/Snack/Other; custom existing categories remain selectable. More details retains amount/calories, additional nutrition, favorites/library, classification, evidence, custom units, notes/photos and dates/time zones. Unknown values remain unknown. Drink volume stays primary; drink additions remain secondary and contribute once.
 
 ### Scan
 
@@ -104,7 +102,7 @@ Favorites and recent items are reachable through an expandable section in the me
 
 ## 6. Drink flow
 
-The drink name field accepts Water, Coffee, Tea or any custom name; a new drink starts as Water. Changing a manually typed name to a non-water drink removes the default water classification. Main inputs are drink, optional volume/unit and calories. More details groups additional nutrition, amount evidence/favorites, milk/sugar additions, notes/photos, and date/time. A selected provider product keeps its reported portion unit and nutrition snapshot.
+Drink entry asks “What did you drink?” and offers Water/Coffee/Tea/Juice/Milk/Other in a readable selector. Other shows a custom name field. Volume and unit share a row at ordinary text sizes and stack for large text. Choosing a different drink keeps the entered volume and event context but clears prior source nutrition/provenance; it cannot give coffee a previous water or product label's calories. Only Water defaults to the water classification. Selecting the current beverage keeps its snapshot. Calories, category, additions, notes/photos and time remain under More details.
 
 The single quick-water shortcut saves 16 US fl oz (473.2 mL displayed in metric) in one tap, update the total immediately after a successful local write, and display Undo. Repeated taps represent separate drinks; prevent only accidental duplicate submission of the same in-flight save. Undo removes the last identified entry, not whichever entry happens to be latest after an unrelated change.
 
@@ -151,7 +149,7 @@ This is a custom component system; avoid default Material color schemes, promine
 
 ## 11. Implemented simplification and regression checks
 
-The October 2 editor revision removes the initial method chip menus, unit chip clouds and duplicate helper paragraphs. Everyday food/drink forms have direct optional amount and calorie fields and one Save action. Find a food reveals lookup choices only on request. Activity uses a single readable type dropdown. Details shows name/time/portion/calories first with Edit; full nutrition, provenance, notes/photos, favorites and technical record information remain secondary. Settings keeps nutrition setup behind Nutrition sources; the masked personal USDA key, Keystore/vault contract and further collapsed optional gateway remain intact. Export, full backup, restore, attachment safeguards and offline logging continue through their existing paths.
+The 0.1.3 revision follows Simple's documented direct food logging, drink selection and tracker-local movement actions. References: [food logging](https://help.simple.life/en/articles/9887898-how-to-log-and-edit-food), [drinks](https://help.simple.life/en/articles/9887906-how-to-log-and-edit-drinks), [tracker overview](https://help.simple.life/en/articles/9887852-simple-life-overview-of-main-features). Newleaf retains its own visual identity, local storage, unknown nutrition and export/privacy contracts. This revision does not add fasting, food grading or cloud analysis.
 
 The shared `PortionDialog` accepts optional `quickLog=false`, `busy=false`, and `saveError=null` arguments. quickLog uses a required Category dropdown with “Choose a category” placeholder and Add to journal disabled until an explicit selection, with category/type in the returned Entry; nested meal editors retain Confirm item. Busy and an immediate local submission guard prevent repeated adds/dismissal. Unknown provider amounts stay blank and unsupported nutrition stays null; populated amounts are labeled as product-label references. The parent owns main-screen scan persistence and save retry.
 
@@ -163,4 +161,4 @@ Focused offline regression sources:
 - `EditorStateTest`: selected category survives provider population alongside event fields and provider snapshots.
 - Existing `BarcodeLookupFlowTest`: duplicate suppression, retained-code retry, cancellation/stale rejection and sanitized errors; unchanged in this revision.
 
-The UI specialist performed source/file verification; the parent integrated release passed 120 JVM tests and 31 signed-release Android emulator tests. Actual dark-theme, keyboard and font-scale 1.6 checks keep Save/Close visible. See [validation](../releases/VALIDATION.md). Physical S25 Ultra camera/network behavior and TalkBack remain phone checks.
+Current build, JVM, signed-release emulator and visual evidence is in [validation](../releases/VALIDATION.md). Earlier 0.1.2 checks are historical. HomeFlowUiTest covers direct food/drink/movement/steps entry and explicit day selection; EditorStateTest verifies that beverage changes cannot retain stale nutrition/provenance or reset entry identity/version. Physical S25 Ultra camera/network behavior and TalkBack remain phone checks.

@@ -106,6 +106,11 @@ internal fun selectStandaloneItem(draft:EditorDraft,item:Entry,settings:AppSetti
         favorite=draft.favorite,saveAs=draft.saveAs,lookupBarcode=draft.lookupBarcode,originalText=draft.originalText.ifBlank{item.originalText},base=source)
 }
 
+/** Choosing a different beverage keeps the volume, but cannot reuse the old label's nutrition. */
+internal fun selectDrink(draft:EditorDraft,name:String):EditorDraft = if(name==draft.name)draft else draft.copy(
+    name=name,water=name.equals("water",true),nutrients=emptyMap(),overrides=emptyList(),originalText="",lookupBarcode=null,
+    base=draft.base?.let{Entry(id=it.id,kind=EntryKind.DRINK,name=name,createdAt=it.createdAt,version=it.version)})
+
 internal fun canonicalPortion(source:Entry?,quantity:Double,unit:String,volume:Boolean):Double? {
     val direct=if(volume)Units.volumeMl(quantity,unit)else Units.massGrams(quantity,unit)
     if(direct!=null)return direct

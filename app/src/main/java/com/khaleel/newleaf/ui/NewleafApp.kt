@@ -117,18 +117,8 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
     NewleafTheme(journal.settings.theme) {
         Scaffold(containerColor=MaterialTheme.colorScheme.background,snackbarHost={SnackbarHost(snackbar)},bottomBar={
             Column(Modifier.background(MaterialTheme.colorScheme.background).navigationBarsPadding().padding(horizontal=20.dp,vertical=10.dp)) {
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    Action("Log",Modifier.weight(1f),primary=true,enabled=loaded && !busy){screen="log"}
-                    Row(Modifier.weight(1f).heightIn(min=52.dp).semantics{role=Role.Button;contentDescription="Scan barcode"}
-                        .background(MaterialTheme.colorScheme.surfaceVariant,RoundedCornerShape(14.dp))
-                        .clickable(enabled=loaded && !busy){editorError=null;tab="Today";date=LocalDate.now();screen="scan"}.padding(horizontal=16.dp,vertical=13.dp),
-                        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
-                        Icon(Icons.Outlined.QrCodeScanner,contentDescription=null,modifier=Modifier.size(22.dp))
-                        Spacer(Modifier.width(8.dp));Text("Scan",style=MaterialTheme.typography.labelLarge)
-                    }
-                }
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
-                    listOf("Today","History","Trends").forEach { label->Box(Modifier.weight(1f).heightIn(min=52.dp).semantics{selected=tab==label}.clickable(role=Role.Tab) {tab=label;if(label=="Today")date=LocalDate.now()}.padding(vertical=12.dp),contentAlignment=Alignment.Center){Text(label,color=if(tab==label)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.labelLarge)} }
+                    listOf("Today","History","Trends","More").forEach { label->Box(Modifier.weight(1f).heightIn(min=52.dp).semantics{selected=tab==label}.clickable(enabled=loaded && !busy,role=Role.Tab) {if(label=="More")screen="log"else{tab=label;if(label=="Today")date=LocalDate.now()}}.padding(vertical=12.dp),contentAlignment=Alignment.Center){Text(label,color=if(tab==label)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.labelLarge)} }
                 }
             }
         }) { padding->
@@ -136,12 +126,13 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
             else Column(Modifier.padding(padding).fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(start=22.dp,end=16.dp,top=14.dp,bottom=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
                     Row(Modifier.weight(1f),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){LeafMark();Text("Newleaf",style=MaterialTheme.typography.titleLarge)}
+                    TextButton(onClick={editorError=null;tab="Today";date=LocalDate.now();screen="scan"},enabled=!busy,modifier=Modifier.semantics{contentDescription="Scan barcode"}){Icon(Icons.Outlined.QrCodeScanner,contentDescription=null);Spacer(Modifier.width(6.dp));Text("Scan")}
                     TextButton(onClick={screen="settings"}){Icon(Icons.Outlined.Settings,contentDescription="Settings");Spacer(Modifier.width(6.dp));Text("Settings")}
                 }
                 if(tab=="Trends")TrendsScreen(journal)
                 else JournalScreen(journal,if(tab=="Today")LocalDate.now() else date,tab=="History",busy,
                     onDate={date=it;tab=if(it==LocalDate.now())"Today" else "History"},onWater=::quickWater,onEntry={detail=it;screen="detail"},
-                    onSteps={open(EntryKind.STEPS)},onExport={portabilityOrigin=null;screen="export"})
+                    onSteps={open(EntryKind.STEPS)},onLog={open(it)},onExport={portabilityOrigin=null;screen="export"})
             }
         }
         if(loaded && !journal.settings.onboardingComplete)WelcomeSheet(journal.settings){settings->scope.launch{try{repository.saveSettings(settings.copy(onboardingComplete=true))}catch(e:Exception){notify(e.message ?: "Settings could not be saved")}}}
@@ -201,35 +192,7 @@ fun NewleafApp(repository:JournalRepository,pendingMealId:String?=null,onPending
 }
 
 @Composable
-private fun JournalScreen(journal:Journal,date:LocalDate,history:Boolean,busy:Boolean,onDate:(LocalDate)->Unit,onWater:(Int)->Unit,onEntry:(Entry)->Unit,onSteps:()->Unit,onExport:()->Unit) {
-    val context=LocalContext.current;var query by remember { mutableStateOf("") };var filter by remember { mutableStateOf("All") }
-    val summary=Summaries.day(journal.entries,date.toString());val calories=summary.nutrients["energy_kcal"]
-    val rows=journal.entries.filter{isJournal(it) && it.localDate==date.toString() && !(it.kind==EntryKind.FOOD && it.mealId!=null && filter!="Food" && query.isBlank())}.filter{query.isBlank() || it.name.contains(query,true) || it.notes.contains(query,true)}.filter{filter=="All" || kindName(it.kind)==filter}.sortedBy{it.occurredAt}
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column{Text(if(history)"Your journal" else "Today",style=MaterialTheme.typography.headlineLarge);Caption(date.format(DateTimeFormatter.ofPattern("EEEE, MMMM d")))};if(history)TextButton(onClick={DatePickerDialog(context,{_,year,month,day->onDate(LocalDate.of(year,month+1,day))},date.year,date.monthValue-1,date.dayOfMonth).show()}){Text("Choose date")}}
-        if(history){Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Action("← Previous",Modifier.weight(1f)){onDate(date.minusDays(1))};Action("Next →",Modifier.weight(1f)){onDate(date.plusDays(1))}};Field("Search names and notes",query,{query=it});SelectField("Show",filter,listOf("All","Meal","Food","Drink","Activity","Weight","Steps","Check-in","Daily note")){filter=it};Action("Export journal",onClick=onExport)}
-        Panel(Modifier.fillMaxWidth()) {
-            val largeText=LocalDensity.current.fontScale>1.3f
-            val totals: @Composable ()->Unit = {
-                Column {Caption("Calories");Text(calories?.knownSum?.let{"${number(it)} kcal"} ?: "—",style=MaterialTheme.typography.titleMedium)}
-                Column {Caption("Water");Text(volumeLabel(summary.waterMl,journal.settings).replace("Unknown","—"),style=MaterialTheme.typography.titleMedium)}
-                Column(Modifier.clickable(role=Role.Button,onClick=onSteps).heightIn(min=48.dp)) {Caption("Steps");Text(summary.steps?.toString() ?: "Add",style=MaterialTheme.typography.titleMedium)}
-            }
-            if(largeText)Column(verticalArrangement=Arrangement.spacedBy(10.dp)){totals()}
-            else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){totals()}
-            if(calories!=null && calories.totalContributors>0 && calories.completeness==Completeness.PARTIAL)Caption("Some food has no calorie information.")
-            journal.settings.waterGoalMl?.let{goal->Caption("Water goal: ${volumeLabel(goal,journal.settings)}");LinearProgressIndicator(progress={(summary.waterMl ?: 0.0).div(goal).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth())}
-        }
-        Action(if(journal.settings.volumeUnit=="ml")"+ ${number(16*29.5735295625)} mL water"else"+ 16 oz water",Modifier.fillMaxWidth(),enabled=!busy){onWater(16)}
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Section("Your day")}
-        if(rows.isEmpty())Panel{Text("Nothing logged yet",style=MaterialTheme.typography.titleLarge);Caption(if(query.isNotBlank() || filter!="All")"No records match this view." else "Tap Log to add something, or Scan to use a product barcode.")}
-        rows.forEach {entry->TimelineCard(entry,journal,onEntry)}
-        Spacer(Modifier.height(18.dp))
-    }
-}
-
-@Composable
-private fun TimelineCard(entry:Entry,journal:Journal,onEntry:(Entry)->Unit) {
+internal fun TimelineCard(entry:Entry,journal:Journal,onEntry:(Entry)->Unit) {
     val children=journal.entries.filter{it.mealId==entry.id && it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)}
     val calories=if(entry.kind==EntryKind.MEAL)Nutrition.aggregate(children,"energy_kcal").knownSum else entry.nutrients["energy_kcal"]
     Panel(Modifier.fillMaxWidth().clickable{onEntry(entry)}) {
