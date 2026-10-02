@@ -106,4 +106,54 @@ class QuickScanUiTest {
         ui.onNodeWithText("Log scanned item").assertDoesNotExist()
         ui.runOnIdle {assertEquals(0,saves)}
     }
+    @Test fun halfBottlePercentShowsPopulatedNutritionAndSavesOneScaledSnapshot()=runBlocking<Unit> {
+        val repository=JournalRepository(InstrumentationRegistry.getInstrumentation().targetContext)
+        val before=repository.awaitLoaded()
+        val bottle=FoodCandidate(name="Fictional 500 mL soda",quantity=1.0,unit="serving",
+            nutrients=mapOf("energy_kcal" to 120.0,"sugar_g" to 30.0,"protein_g" to null,"sodium_mg" to 20.0),
+            basis=NutrientBasis.PER_SERVING,servingVolumeMl=250.0,
+            portions=listOf(PortionDefinition("serving",1.0,volumeMl=250.0),PortionDefinition("package",1.0,volumeMl=500.0)),
+            source="Open Food Facts",barcode=code,kind=EntryKind.DRINK,
+            sourceReference=SourceReference(provider="Open Food Facts",barcode=code))
+        try {
+            repository.saveSettings(before.settings.copy(onboardingComplete=true))
+            ui.runOnUiThread {ui.activity.setContent {NewleafApp(repository,quickBarcodeLookup={bottle},quickBarcodeCapture={it(code)})}}
+            ui.waitUntil(10_000){ui.onAllNodes(hasContentDescription("Scan barcode") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
+            ui.onNodeWithContentDescription("Scan barcode").performClick()
+            ui.onNodeWithText("Whole package: 500 mL",substring=true).assertExists()
+            ui.onNodeWithText("240 kcal").assertExists()
+            ui.onNodeWithText("Sugar · g: 60").assertExists()
+            ui.onNodeWithText("Details").assertExists()
+            ui.onNodeWithText("Choose a category").performScrollTo().performClick()
+            ui.onNodeWithText("Snack").performClick()
+            ui.onNodeWithContentDescription("Unit: package").performScrollTo().performClick()
+            ui.onNodeWithText("Percent of package").performClick()
+            ui.onNode(hasText("Percent of package") and hasSetTextAction()).performScrollTo().performTextReplacement("50")
+            ui.onNodeWithText("120 kcal").assertExists()
+            ui.onNodeWithText("Sugar · g: 30").assertExists()
+            ui.onNodeWithText("Sodium · mg: 20").assertExists()
+            ui.onNodeWithText("Protein · g: 0").assertDoesNotExist()
+            ui.onNodeWithText("Sugar · g: 30").performScrollTo()
+            screenshot("half-bottle")
+            ui.onNodeWithText("Add to journal").assertIsDisplayed().performClick()
+            ui.waitUntil(10_000){repository.state.value.entries.any{it.id !in before.entries.map{old->old.id}}}
+            val entry=repository.state.value.entries.single{it.id !in before.entries.map{old->old.id}}
+            assertEquals(.5,entry.quantity!!,1e-9);assertEquals("package",entry.unit)
+            assertEquals(250.0,entry.volumeMl!!,1e-9)
+            assertEquals(120.0,entry.nutrients["energy_kcal"]!!,1e-9)
+            assertEquals(30.0,entry.nutrients["sugar_g"]!!,1e-9)
+            assertNull(entry.nutrients["protein_g"]);assertFalse(entry.countsAsWater)
+            assertEquals("Snack",entry.category)
+            assertEquals(code,entry.sourceReference?.barcode)
+            assertEquals(2,entry.portionDefinitions.size)
+            assertEquals("50",entry.metadata["portion_input_quantity"])
+            assertEquals("percent_of_package",entry.metadata["portion_input_unit"])
+            // Reload the actual journal to verify quantities and provenance persist.
+            val reload=JournalRepository(InstrumentationRegistry.getInstrumentation().targetContext)
+            try {assertEquals(entry,reload.awaitLoaded().entries.single{it.id==entry.id})} finally {reload.close()}
+            ui.onNodeWithText(entry.name).performScrollTo().performClick()
+            ui.onNodeWithText("Sugar · g: 30").assertExists()
+        } finally {repository.restoreJournal(before,replace=true);repository.close()}
+    }
+
 }

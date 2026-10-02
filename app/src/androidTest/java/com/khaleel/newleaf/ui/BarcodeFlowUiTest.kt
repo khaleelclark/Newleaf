@@ -222,4 +222,35 @@ class BarcodeFlowUiTest {
         ui.runOnIdle { assertEquals(2,adds);assertEquals(0,dismisses) }
     }
 
+    @Test fun packageFractionAndUnitSwitchKeepTheSameConsumedAmount() {
+        val bottle=product.copy(name="Fictional soda",quantity=100.0,unit="mL",basis=NutrientBasis.PER_100_ML,
+            basisQuantity=100.0,basisUnit="mL",nutrients=mapOf("energy_kcal" to 40.0,"sugar_g" to 10.0,"protein_g" to null),
+            servingMassG=null,servingVolumeMl=250.0,kind=EntryKind.DRINK,
+            portions=listOf(PortionDefinition("package",1.0,volumeMl=500.0),PortionDefinition("serving",1.0,volumeMl=250.0)))
+        var confirmed:Entry?=null
+        ui.runOnUiThread {ui.activity.setContent {NewleafTheme("light") {PortionDialog(bottle,null,onDismiss={},onConfirm={confirmed=it})}}}
+        ui.onNodeWithText("Sugar · g: 50").assertExists()
+        ui.onNodeWithText("Amount (optional)").performScrollTo().performTextReplacement("0")
+        ui.onNodeWithText("Confirm item").performClick()
+        ui.onNodeWithText("Enter an amount greater than zero, or leave it blank.").assertExists()
+        ui.runOnIdle {assertNull(confirmed)}
+        ui.onNodeWithText("Amount (optional)").performScrollTo().performTextReplacement("0.5")
+        ui.onNodeWithText("100 kcal").assertExists()
+        ui.onNodeWithText("Sugar · g: 25").assertExists()
+        ui.onNodeWithContentDescription("Unit: package").performScrollTo().performClick()
+        ui.onNodeWithText("mL").performClick()
+        ui.onNodeWithText("Amount (optional)").assertTextContains("250")
+        ui.onNodeWithText("100 kcal").assertExists()
+        ui.onNodeWithContentDescription("Unit: mL").performScrollTo().performClick()
+        ui.onNodeWithText("serving").performClick()
+        ui.onNodeWithText("Amount (optional)").assertTextContains("1")
+        ui.onNodeWithText("100 kcal").assertExists()
+        ui.onNodeWithText("Confirm item").performClick()
+        ui.runOnIdle {
+            assertEquals(250.0,confirmed!!.volumeMl!!,1e-9)
+            assertEquals(100.0,confirmed!!.nutrients["energy_kcal"]!!,1e-9)
+            assertNull(confirmed!!.nutrients["protein_g"])
+        }
+    }
+
 }

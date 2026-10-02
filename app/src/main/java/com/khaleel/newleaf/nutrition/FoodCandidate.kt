@@ -66,6 +66,21 @@ data class FoodCandidate(
         ?: (if (servingMassG != null && servingVolumeMl != null) Units.massGrams(quantity, unit)?.times(servingVolumeMl / servingMassG) else null)
         ?: (if (same(unit, basisUnit) || same(unit, "serving")) servingVolumeMl?.times(quantity) else null)).takeIf { it == null || it.isFinite() }
 
+    /** Convert a reviewed amount using explicit package/serving measurements only. */
+    fun convertAmount(quantity: Double, from: String, to: String): Double? {
+        if (!quantity.isFinite() || quantity <= 0) return null
+        Units.convert(quantity, from, to)?.let { return it.takeIf { n -> n.isFinite() && n > 0 } }
+        val targetMass = mass(1.0, to)
+        val targetVolume = volume(1.0, to)
+        val sourceMass = mass(quantity, from)
+        val sourceVolume = volume(quantity, from)
+        return (when {
+            targetMass != null && sourceMass != null -> sourceMass / targetMass
+            targetVolume != null && sourceVolume != null -> sourceVolume / targetVolume
+            else -> null
+        }).takeIf { it != null && it.isFinite() && it > 0 }
+    }
+
     fun toEntry(quantity: Double? = this.quantity, unit: String = this.unit, kind: EntryKind = this.kind): Entry {
         require(kind == EntryKind.FOOD || kind == EntryKind.DRINK)
         require(quantity == null || quantity.isFinite() && quantity > 0) { "Portion must be positive" }

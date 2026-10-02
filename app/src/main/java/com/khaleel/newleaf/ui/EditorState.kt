@@ -5,7 +5,7 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
-internal val nutrientLabels = linkedMapOf("energy_kcal" to "Calories · kcal", "protein_g" to "Protein · g", "carbohydrate_g" to "Carbohydrates · g", "fat_g" to "Fat · g", "fiber_g" to "Fiber · g", "sugar_g" to "Sugar · g", "sodium_mg" to "Sodium · mg")
+internal val nutrientLabels = linkedMapOf("energy_kcal" to "Calories · kcal", "protein_g" to "Protein · g", "carbohydrate_g" to "Carbohydrates · g", "fat_g" to "Fat · g", "saturated_fat_g" to "Saturated fat · g", "fiber_g" to "Fiber · g", "sugar_g" to "Sugar · g", "sodium_mg" to "Sodium · mg")
 internal fun number(value: Double?): String = value?.let { if(it==it.toLong().toDouble()) it.toLong().toString() else "%.1f".format(java.util.Locale.US,it) } ?: ""
 internal fun decimal(value: Double?): String = value?.toString()?.removeSuffix(".0") ?: ""
 internal fun entryTime(entry: Entry): String = runCatching { Instant.parse(entry.occurredAt).atZone(ZoneId.of(entry.zoneId)).format(DateTimeFormatter.ofPattern("h:mm a")) }.getOrDefault("")
@@ -29,7 +29,7 @@ internal data class EditorDraft(
 ) {
     companion object {
         fun new(kind:EntryKind,date:LocalDate,settings:AppSettings,mealId:String?=null):EditorDraft = EditorDraft(kind=kind,date=date.toString(),mealId=mealId,
-            name=when(kind){EntryKind.DRINK->"Water";EntryKind.ACTIVITY->"Walk";EntryKind.STEPS->"Daily steps";EntryKind.CHECKIN->"How I felt";EntryKind.NOTE->"Daily note";else->""},
+            name=when(kind){EntryKind.DRINK->"Water";EntryKind.ACTIVITY->"Walk";EntryKind.STEPS->"Daily steps";EntryKind.WEIGHT->"Body weight";EntryKind.CHECKIN->"How I felt";EntryKind.NOTE->"Daily note";else->""},
             unit=when(kind){EntryKind.DRINK->settings.volumeUnit;EntryKind.WEIGHT->settings.weightUnit;else->"serving"},water=kind==EntryKind.DRINK)
         fun edit(entry:Entry,all:List<Entry>,settings:AppSettings):EditorDraft {
             val z=Instant.parse(entry.occurredAt).atZone(ZoneId.of(entry.zoneId))

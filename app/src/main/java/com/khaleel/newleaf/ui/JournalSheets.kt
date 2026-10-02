@@ -30,6 +30,7 @@ internal fun EntryDetail(entry:Entry,journal:Journal,onClose:()->Unit,onEdit:(En
             }
             if(entry.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
                 Caption("${number(entry.quantity)} ${entry.unit} · ${entry.nutrients["energy_kcal"]?.let{"${number(it)} kcal"} ?: "Calories unknown"}")
+                PopulatedNutrition(entry.nutrients,entry.nutrientEvidence,includeCalories=false)
 
             }
             if(entry.kind==EntryKind.WEIGHT)Caption(weightLabel(entry.weightKg,journal.settings))

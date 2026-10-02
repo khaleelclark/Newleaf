@@ -29,7 +29,7 @@ class HomeFlowUiTest {
         val repository=JournalRepository(InstrumentationRegistry.getInstrumentation().targetContext)
         val before=repository.awaitLoaded()
         try {
-            repository.saveSettings(before.settings.copy(onboardingComplete=true,volumeUnit="fl oz"))
+            repository.saveSettings(before.settings.copy(onboardingComplete=true,volumeUnit="fl oz",weightUnit="lb"))
             ui.runOnUiThread {ui.activity.setContent {NewleafApp(repository)}}
             ui.waitUntil(10_000){ui.onAllNodesWithText("Log food").fetchSemanticsNodes().isNotEmpty()}
             block(repository,before)
@@ -94,4 +94,18 @@ class HomeFlowUiTest {
         ui.onNodeWithText("Close").performClick()
         ui.runOnIdle {assertEquals(before.entries,repository.state.value.entries)}
     }
+    @Test fun movementWeightShortcutSavesWithoutNamingTheMeasurement()=withJournal {repository,before->
+        ui.onNodeWithText("Log weight").performScrollTo().performClick()
+        ui.onNodeWithText("Body weight").performTextInput("170")
+        ui.onNodeWithText("Name").assertDoesNotExist()
+        ui.onNodeWithText("Save weight").assertIsDisplayed().performClick()
+        ui.waitUntil(10_000){repository.state.value.entries.any{it.id !in before.entries.map{old->old.id}}}
+        val entry=repository.state.value.entries.single{it.id !in before.entries.map{old->old.id}}
+        assertEquals(EntryKind.WEIGHT,entry.kind)
+        assertEquals("Body weight",entry.name)
+        assertEquals(170*0.45359237,entry.weightKg!!,1e-9)
+        assertEquals("lb",entry.unit)
+        assertNull(entry.nutrients["energy_kcal"])
+    }
+
 }

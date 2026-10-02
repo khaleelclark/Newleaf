@@ -138,7 +138,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                     onChange(selectDrink(draft,if(next=="Other")""else next))
                 }
                 if(draft.name !in commonDrinks)Field("Drink name",draft.name,{onChange(draft.copy(name=it,water=it.equals("water",true)))})
-            } else if(draft.kind!=EntryKind.ACTIVITY)Field(if(draft.kind==EntryKind.MEAL)"Meal name"else if(draft.kind==EntryKind.FOOD)"Food or meal"else "Name",draft.name,{onChange(draft.copy(name=it))},lines=if(draft.kind==EntryKind.FOOD)3 else 1)
+            } else if(draft.kind!=EntryKind.ACTIVITY && !(draft.kind==EntryKind.WEIGHT && draft.name=="Body weight"))Field(if(draft.kind==EntryKind.MEAL)"Meal name"else if(draft.kind==EntryKind.FOOD)"Food or meal"else "Name",draft.name,{onChange(draft.copy(name=it))},lines=if(draft.kind==EntryKind.FOOD)3 else 1)
             if(draft.kind in listOf(EntryKind.MEAL,EntryKind.RECIPE,EntryKind.TEMPLATE)) {
                 if(draft.kind==EntryKind.MEAL)SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
                 Section(if(draft.kind==EntryKind.RECIPE)"Ingredients" else "Your meal")
@@ -174,8 +174,9 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 if(draft.kind==EntryKind.DRINK)PortionFields(draft,onChange)
                 if(draft.kind==EntryKind.FOOD) {
                     SelectField("Meal (optional)",draft.category,listOf("Breakfast","Lunch","Dinner","Snack","Other")+listOfNotNull(draft.category.takeIf{it.isNotBlank()}),optional=true){onChange(draft.copy(category=it))}
-                    if(draft.quantity.isNotBlank() || draft.nutrients["energy_kcal"].orEmpty().isNotBlank())Caption(listOfNotNull(draft.quantity.takeIf{it.isNotBlank()}?.let{"$it ${draft.unit}"},draft.nutrients["energy_kcal"]?.takeIf{it.isNotBlank()}?.let{"$it kcal"}).joinToString(" · "))
+                    if(draft.quantity.isNotBlank())Caption("${draft.quantity} ${draft.unit}")
                 }
+                PopulatedNutrition(draft.nutrients.mapValues{it.value.toDoubleOrNull()},draft.base?.nutrientEvidence.orEmpty())
                 if(!findingFood)TextButton(onClick={findingFood=true;selectMethod("Search")}){Text("Find a food")}
                 else {
                     SelectField("Find by",if(lookupMode=="Barcode")"Barcode"else"Name",listOf("Name","Barcode")){selectMethod(if(it=="Barcode")"Barcode"else"Search")}
@@ -291,8 +292,11 @@ internal fun NutrientFields(values:Map<String,String>,onChange:(Map<String,Strin
 @Composable
 internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditions:Boolean=true,quickLog:Boolean=false,busy:Boolean=false,saveError:String?=null,onDismiss:()->Unit,onConfirm:(Entry)->Unit) {
     var name by remember { mutableStateOf(candidate?.name ?: original?.name ?: "") }
-    var quantity by remember { mutableStateOf(if(candidate!=null)decimal(candidate.quantity)else decimal(original?.quantity)) }
-    var unit by remember { mutableStateOf(candidate?.unit ?: original?.unit ?: "serving") }
+    val packageSize=candidate?.takeIf{it.barcode!=null}?.portions?.firstOrNull{it.label=="package"}
+    var quantity by remember { mutableStateOf(if(packageSize!=null)"1"else if(candidate!=null)decimal(candidate.quantity)else decimal(original?.quantity)) }
+    var unit by remember { mutableStateOf(if(packageSize!=null)"package"else candidate?.unit ?: original?.unit ?: "serving") }
+    var percent by remember { mutableStateOf(false) }
+    val consumedQuantity=quantity.toDoubleOrNull()?.let{if(percent)it/100.0 else it}
     var kind by remember { mutableStateOf(candidate?.kind ?: original?.kind ?: EntryKind.FOOD) }
     var category by remember { mutableStateOf(if(quickLog)""else original?.category.orEmpty()) }
     var submitting by remember { mutableStateOf(false) }
@@ -301,7 +305,7 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
     var evidence by remember { mutableStateOf(if(candidate?.estimated==true)"estimated" else original?.portionEvidence ?: "unspecified") }
     var additions by remember { mutableStateOf(original?.composition.orEmpty()) };var adding by remember{mutableStateOf(false)}
     var overrides by remember { mutableStateOf<Map<String,String>>(emptyMap()) };var error by remember { mutableStateOf<String?>(null) }
-    val scaled=remember(candidate,original,quantity,unit,kind) {runCatching { if(candidate!=null)candidate.toEntry(quantity.toDoubleOrNull(),unit,kind) else {
+    val scaled=remember(candidate,original,quantity,unit,kind,percent) {runCatching { if(candidate!=null)candidate.toEntry(consumedQuantity,unit,kind) else {
         val old=original?.copy(nutrients=baseDrinkNutrition(original),nutrientEvidence=baseDrinkEvidence(original)) ?: Entry(kind=kind,name=name);val q=quantity.toDoubleOrNull();val ratio=if(original?.quantity!=null && original.quantity!!>0 && q!=null)portionFactor(original,original.quantity!!,original.unit,q,unit) else if(original==null)1.0 else null
         old.copy(kind=kind,quantity=q,unit=unit,nutrients=old.nutrients.mapValues{it.value?.let{n->ratio?.times(n)}},metadata=rescaledMetadata(original,q,unit),volumeMl=if(kind==EntryKind.DRINK)q?.let{canonicalPortion(original,it,unit,true)} else null,massGrams=if(kind==EntryKind.FOOD)q?.let{canonicalPortion(original,it,unit,false)}else null)
     } }.getOrNull() }
@@ -312,8 +316,18 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                 Section(if(quickLog)"Log scanned item"else"Review portion")
                 Text(candidate?.name ?: original?.name ?: "New item",style=MaterialTheme.typography.headlineMedium)
                 candidate?.brand?.takeIf{it.isNotBlank()}?.let{Caption(it)}
-                if(candidate?.barcode!=null && candidate.quantity!=null)Caption("Label amount: ${decimal(candidate.quantity)} ${candidate.unit}. Change it to the amount you had.")
-                if(candidate!=null && candidate.quantity==null)Caption("Amount unknown. Leave blank if you don't know.")
+                if(packageSize!=null) {
+                    val size=packageSize.volumeMl?.let{"${number(it)} mL"} ?: "${number(packageSize.massGrams)} g"
+                    val label=candidate?.metadata?.get("off_package_label").orEmpty()
+                    Caption("Whole package: $size${if(label.isNotBlank() && !label.equals(size,true)) " ($label)" else ""}. Check this against your label.")
+                    Caption("Enter 0.5 package or 50 percent for half. Change the amount to what you had.")
+                    candidate?.servingVolumeMl?.let{Caption("One label serving: ${number(it)} mL")}
+                    candidate?.servingMassG?.let{Caption("One label serving: ${number(it)} g")}
+                } else if(candidate?.barcode!=null && candidate.quantity!=null) {
+                    Caption("Label amount: ${decimal(candidate.quantity)} ${candidate.unit}. Change it to the amount you had.")
+                    Caption("Package size not listed. Use the amount on your label; a serving may be less than the whole package.")
+                }
+                if(candidate!=null && candidate.quantity==null && packageSize==null)Caption("Amount unknown. Leave blank if you don't know.")
                 if(candidate?.metadata?.get("description_mode")=="usda_assisted") {
                     Caption(if(candidate.quantity==null)"No amount supplied. Leave blank if unknown."else"Amount suggested from your text. Check it before adding.")
                     if(candidate.metadata["unit_recognized"]=="false")Caption("Check the unit. Nutrition cannot be converted yet.")
@@ -323,21 +337,36 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                     SelectField("Category",category,listOf("Breakfast","Lunch","Dinner","Snack","Other"),enabled=!locked,placeholder="Choose a category"){category=it}
                 }
                 if(allowAdditions)SelectField("Log as",if(kind==EntryKind.DRINK)"Drink"else"Food",listOf("Food","Drink"),enabled=!locked){kind=if(it=="Drink")EntryKind.DRINK else EntryKind.FOOD}
-                Field("Amount (optional)",quantity,{quantity=it},numeric=true,enabled=!locked)
-                val units=((candidate?.portions?.map{it.label} ?: emptyList())+listOf(unit,"serving")+if(kind==EntryKind.DRINK)listOf("mL","fl oz")else listOf("g","oz")).distinct()
-                SelectField("Unit",unit,units,enabled=!locked){next->
-                    quantity.toDoubleOrNull()?.let{Units.convert(it,unit,next)}?.let{quantity=decimal(it)}
-                    unit=next
+                Field(if(percent)"Percent of package"else"Amount (optional)",quantity,{quantity=it;error=null},numeric=true,enabled=!locked)
+                val units=((candidate?.portions?.map{it.label} ?: emptyList())+(if(packageSize!=null)listOf("Percent of package")else emptyList())+listOf(unit,"serving")+if(kind==EntryKind.DRINK)listOf("mL","fl oz")else listOf("g","oz")).distinct()
+                SelectField("Unit",if(percent)"Percent of package"else unit,units,enabled=!locked){next->
+                    val nextPercent=next=="Percent of package"
+                    val nextUnit=if(nextPercent)"package"else next
+                    val converted=consumedQuantity?.let { q->
+                        candidate?.convertAmount(q,unit,nextUnit) ?: Units.convert(q,unit,nextUnit) ?: original?.let {
+                            val volume=kind==EntryKind.DRINK
+                            val current=canonicalPortion(it,q,unit,volume)
+                            val target=canonicalPortion(it,1.0,nextUnit,volume)
+                            if(current!=null && target!=null && target>0)current/target else null
+                        }
+                    }
+                    quantity=decimal(converted?.let{if(nextPercent)it*100.0 else it})
+                    unit=nextUnit;percent=nextPercent;error=null
                 }
                 (candidate?.sourceReference ?: original?.sourceReference)?.let{source->
                     if(!source.snapshotAllowed || !source.exportAllowed)Caption("This source has storage/export restrictions. Full exports and backups are blocked until resolved.")
                 }
                 val previewCalories=if("energy_kcal" in overrides)overrides["energy_kcal"]?.toDoubleOrNull()else scaled?.nutrients?.get("energy_kcal")
                 Caption(previewCalories?.let{"${number(it)} kcal"} ?: "Calories unknown for this portion")
+                PopulatedNutrition((scaled?.nutrients.orEmpty()+overrides.mapValues{it.value.toDoubleOrNull()}),scaled?.nutrientEvidence.orEmpty(),includeCalories=false)
+                if(candidate!=null && candidate.nutrients.values.any{it!=null} && (scaled==null || scaled.nutrients.values.none{it!=null})) {
+                    Caption("Nutrition is listed, but this amount cannot be converted. Choose a measured amount or label serving.")
+                    PopulatedNutrition(candidate.nutrients,candidate.nutrients.keys.associateWith{code->NutrientEvidence(unit=candidate.nutrientUnits[code] ?: Units.nutrientUnit(code),status=if(code in candidate.estimatedNutrients)"estimated"else"known")},title="Label nutrition · ${decimal(candidate.basisQuantity)} ${candidate.basisUnit}")
+                }
                 Disclosure("Details") {
                     if(candidate!=null || !original?.name.isNullOrBlank())Field("Food or drink",name,{name=it},enabled=!locked)
                     NutrientFields((scaled?.nutrients ?: emptyMap()).mapValues{decimal(it.value)}+overrides){updated->if(!locked)overrides=updated.filter{(k,v)->v!=decimal(scaled?.nutrients?.get(k))}}
-                    Field("Unit / serving label",unit,{unit=it},enabled=!locked)
+                    Field("Unit / serving label",unit,{unit=it;percent=false},enabled=!locked)
                     SelectField("How was the amount determined?",evidence,listOf("unspecified","measured","estimated"),enabled=!locked){evidence=it}
                     candidate?.originalText?.takeIf{it.isNotBlank()}?.let{Caption("Your input: $it")}
                     Caption("Source: ${candidate?.source ?: original?.source ?: "Manual entry"}")
@@ -357,10 +386,10 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                 Action(if(locked)"Adding…"else if(quickLog)"Add to journal"else"Confirm item",Modifier.fillMaxWidth(),primary=true,enabled=!locked && name.isNotBlank() && (!quickLog || category.isNotBlank())) {
                     if(busy || submitting || quickLog && category.isBlank())return@Action
                     runCatching {
-                        val q=quantity.takeIf{it.isNotBlank()}?.toDouble();require(q==null || q>0 && q.isFinite()){ "Enter a positive portion" }
+                        val entered=quantity.takeIf{it.isNotBlank()}?.toDouble();val q=entered?.let{if(percent)it/100.0 else it};require(q==null || q>0 && q.isFinite()){ "Enter a positive portion" }
                         val base=requireNotNull(scaled){"This portion could not be converted"}
                         val nutrients=base.nutrients+overrides.mapValues{(_,v)->v.takeIf{it.isNotBlank()}?.toDouble()?.also{require(it>=0 && it.isFinite()){"Nutrition must be zero or greater"}}}
-                        val reviewed=base.copy(name=name.trim(),quantity=q,unit=unit,portionEvidence=evidence,category=category,kind=kind,matchStatus="confirmed",nutrients=nutrients,nutrientEvidence=base.nutrientEvidence+overrides.mapValues{(code,v)->NutrientEvidence(status=if(v.isBlank())"unknown"else"known",origin="user_override",unit=Units.nutrientUnit(code),basis="consumed")},sourceReference=base.sourceReference?.let{it.copy(overrides=it.overrides+overrides)},countsAsWater=kind==EntryKind.DRINK && (original?.countsAsWater==true || name.equals("water",true)))
+                        val reviewed=base.copy(name=name.trim(),quantity=q,unit=unit,portionEvidence=evidence,category=category,kind=kind,matchStatus="confirmed",metadata=base.metadata+mapOf("portion_input_quantity" to quantity,"portion_input_unit" to if(percent)"percent_of_package"else unit),nutrients=nutrients,nutrientEvidence=base.nutrientEvidence+overrides.mapValues{(code,v)->NutrientEvidence(status=if(v.isBlank())"unknown"else"known",origin="user_override",unit=Units.nutrientUnit(code),basis="consumed")},sourceReference=base.sourceReference?.let{it.copy(overrides=it.overrides+overrides)},countsAsWater=kind==EntryKind.DRINK && (original?.countsAsWater==true || name.equals("water",true)))
                         if(quickLog)submitting=true
                         onConfirm(if(kind==EntryKind.DRINK && additions.isNotEmpty())Nutrition.composeDrink(reviewed,additions)else reviewed.copy(composition=emptyList()))
                     }.onFailure{submitting=false;error=when(it.message){"Enter a positive portion"->"Enter an amount greater than zero, or leave it blank.";"This portion could not be converted"->"This amount could not be converted. Check the amount and unit.";"Nutrition must be zero or greater"->"Calories and nutrition must be zero or greater.";else->"The item could not be added. Check the amount and nutrition, then try again."}}
@@ -380,4 +409,25 @@ internal fun changePortion(draft:EditorDraft,quantity:String,unit:String):Editor
     val recipe=draft.base?.recipeSnapshot
     val values=if(recipe!=null && q!=null && q>0)runCatching{Recipes.log(recipe,q,unit).nutrients.mapValues{decimal(it.value)}}.getOrDefault(draft.nutrients)else if(draft.base!=null && factor!=null)draft.nutrients.mapValues { (_,value)->value.toDoubleOrNull()?.let{decimal(it*factor)} ?: "" } else if(draft.base!=null && unit!=draft.unit)draft.nutrients.mapValues{""}else draft.nutrients
     return draft.copy(quantity=quantity,unit=unit,nutrients=values)
+}
+
+/** Show values that are present without asking the user to discover a disclosure. */
+@Composable
+internal fun PopulatedNutrition(values:Map<String,Double?>,evidence:Map<String,NutrientEvidence>,includeCalories:Boolean=true,title:String="Nutrition for this amount") {
+    val extras=values.keys.filter{it !in nutrientLabels && it !in setOf("off_nova_group","off_energy_kj","off_energy")}
+    val known=(nutrientLabels.keys+extras).filter{values[it]!=null && (includeCalories || it!="energy_kcal")}
+    if(known.isNotEmpty()) {
+        Panel(Modifier.fillMaxWidth()) {
+            Caption(title)
+            known.forEach{code->
+                val label=nutrientLabels[code] ?: when(code) {
+                    "off_carbohydrates"->"Available carbohydrates · ${evidence[code]?.unit.orEmpty()}"
+                    "off_salt"->"Salt · ${evidence[code]?.unit.orEmpty()}"
+                    else->code.removePrefix("off_").replace('_',' ').replaceFirstChar{it.uppercase()}+evidence[code]?.unit?.takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
+                }
+                Caption("$label: ${number(values[code])}${if(evidence[code]?.status=="estimated")" (estimated)"else""}")
+            }
+            Caption("Only listed values are shown. Other nutrients are unknown.")
+        }
+    }
 }

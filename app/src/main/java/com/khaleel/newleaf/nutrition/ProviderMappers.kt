@@ -230,7 +230,16 @@ object ProviderMappers {
         val candidates = inputSets.mapNotNull { it.takeIf(JsonElement::isJsonObject)?.asJsonObject }
             .filter { it.text("preparation") == "as_sold" && it.text("source") in setOf("manufacturer", "packaging") }
             .sortedBy { if (it.text("source") == "manufacturer") 0 else 1 }
-        val chosen = candidates.firstOrNull { it.text("per") in setOf("100g", "100ml", "serving") }
+        val supported = candidates.filter { it.text("per") in setOf("100g", "100ml", "serving") }
+        // Some products start with a NOVA-only 100g set. Prefer an actual
+        // nutrient-bearing label set, preserving origin ordering and isolation.
+        val chosen = supported.firstOrNull { set ->
+            set.obj("nutrients")?.entrySet()?.any { (code, value) ->
+                code != "nova-group" && value.isJsonObject &&
+                    value.asJsonObject.number("value") != null &&
+                    value.asJsonObject.text("unit").orEmpty().isNotBlank()
+            } == true
+        } ?: supported.firstOrNull()
         // A recognized product is still useful when its nutrition cannot be safely
         // consumed. Preserve identity; never substitute prepared/aggregate values.
         val nutritionStatus = when {
@@ -250,6 +259,7 @@ object ProviderMappers {
             val rawUnit = row.text("unit").orEmpty()
             val modifier = row.text("modifier")
             v.originals["provider_nutrient_off_$providerCode"] = "${modifier.orEmpty()}${raw ?: "null"} $rawUnit"
+            if (providerCode == "nova-group") continue // classification is not an amount of a nutrient
             val code = mapping[providerCode]
             if (code == null) v.put("off_${providerCode.replace('-', '_')}", if (modifier in setOf("<", "<=", ">", ">=")) null else raw, rawUnit, "off:$providerCode", modifier != null)
             else v.put(code, if (modifier in setOf("<", "<=", ">", ">=")) null else normalize(raw, rawUnit, Units.nutrientUnit(code)), Units.nutrientUnit(code), "off:$providerCode", modifier != null)
@@ -292,12 +302,20 @@ object ProviderMappers {
         } else servingDefinitions.singleOrNull()
         val servingMass = servingDefinition?.first
         val servingVolume = servingDefinition?.second
+        val packageQuantity = positive(product.number("product_quantity"))
+        val packageUnit = product.text("product_quantity_unit").orEmpty()
+        val packageMass = if (packageUnit.equals("g", true)) packageQuantity else null
+        val packageVolume = if (packageUnit.equals("ml", true)) packageQuantity else null
+        val packagePortion = if (packageMass != null || packageVolume != null)
+            PortionDefinition("package", 1.0, packageMass, packageVolume) else null
         val categories = tags(product.get("categories_tags"))
         val sourceId = "openfoodfacts:$returnedCode"
         return FoodCandidate(name, brand = product.text("brands"), quantity = when(basis) { NutrientBasis.PER_100_G, NutrientBasis.PER_100_ML -> 100.0; NutrientBasis.PER_SERVING -> 1.0; else -> null },
             unit = when(basis) { NutrientBasis.PER_100_G -> "g"; NutrientBasis.PER_100_ML -> "mL"; else -> "serving" },
             nutrients = v.values, basis = basis, servingMassG = servingMass, servingVolumeMl = servingVolume,
-            portions = if (servingMass != null || servingVolume != null) listOf(PortionDefinition("serving", 1.0, servingMass, servingVolume)) else emptyList(),
+            portions = listOfNotNull(
+                if (servingMass != null || servingVolume != null) PortionDefinition("serving", 1.0, servingMass, servingVolume) else null,
+                packagePortion),
             source = "Open Food Facts", sourceId = sourceId, barcode = barcode,
             region = tags(product.get("countries_tags")).takeIf { it.isNotEmpty() }?.joinToString(","),
             kind = if (basis == NutrientBasis.PER_100_ML || servingVolume != null || "en:beverages" in categories || isDrink(name)) EntryKind.DRINK else EntryKind.FOOD,
@@ -306,7 +324,10 @@ object ProviderMappers {
                 license = "ODbL-1.0 database: https://opendatacommons.org/licenses/odbl/1-0/; DbCL-1.0 contents: https://opendatacommons.org/licenses/dbcl/1-0/",
                 exportAllowed = true, snapshotAllowed = true),
             nutrientUnits = v.units, nutrientProviderCodes = v.codes, estimatedNutrients = v.estimated, preparation = chosen?.text("preparation").orEmpty(),
-            metadata = v.originals + mapOf("off_nutrition_source" to chosen?.text("source").orEmpty(), "off_nutrition_status" to nutritionStatus, "source_url" to "https://world.openfoodfacts.org/product/$returnedCode",
+            metadata = v.originals + mapOf("off_nutrition_source" to chosen?.text("source").orEmpty(), "off_nutrition_status" to nutritionStatus,
+                "off_package_label" to product.text("quantity").orEmpty(),
+                "off_package_size_status" to if(packagePortion == null) "unknown" else "provider_normalized_whole_package",
+                "source_url" to "https://world.openfoodfacts.org/product/$returnedCode",
                 "rights_status" to "Retention/export permitted under published ODbL/DbCL; preserve notices and independently licensed nutrition subset",
                 "off_license_url" to "https://opendatacommons.org/licenses/odbl/1-0/",
                 "off_contents_license_url" to "https://opendatacommons.org/licenses/dbcl/1-0/",

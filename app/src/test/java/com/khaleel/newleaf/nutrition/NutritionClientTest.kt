@@ -567,7 +567,7 @@ class NutritionClientTest {
         assertEquals("036000291452", c.barcode)
         assertEquals("openfoodfacts:0036000291452", c.sourceId)
         assertEquals("036000291452", c.toEntry().sourceReference!!.barcode)
-        assertEquals("https://world.openfoodfacts.org/api/v3.6/product/036000291452.json?fields=code,product_name,product_name_en,generic_name,brands,categories_tags,countries_tags,nutrition", fake.requests.single().url)
+        assertEquals("https://world.openfoodfacts.org/api/v3.6/product/036000291452.json?fields=code,product_name,product_name_en,generic_name,brands,categories_tags,countries_tags,quantity,product_quantity,product_quantity_unit,nutrition", fake.requests.single().url)
         fake.response = NutritionResponse(200, off().replace("3017620422003", "0036000291469"))
         expect(NutritionError.MALFORMED_RESPONSE) { NutritionClient(AppSettings(), fake).barcode("036000291452") }
     }
@@ -802,6 +802,89 @@ class NutritionClientTest {
         assertEquals(entry.nutrients, restored.nutrients)
         assertEquals(entry.sourceReference, restored.sourceReference)
         assertEquals(100.0, restored.nutrients["energy_kcal"]!!, 1e-9)
+    }
+
+    @Test fun offMetadataOnlyFirstSetDoesNotHideRealBottleNutrition() {
+        // Shape observed in public OFF v3.6 Coca-Cola 5449000000996 on 2026-10-02.
+        // Values are a minimal regression snapshot, not a user journal.
+        val root=json("""{"product":{"code":"5449000000996","product_name":"Cola",
+          "quantity":"330 ml","product_quantity":330,"product_quantity_unit":"ml","nutrition":{"input_sets":[
+          {"source":"packaging","preparation":"as_sold","per":"100g","nutrients":{"nova-group":{"value":4,"unit":""}}},
+          {"source":"packaging","preparation":"as_sold","per":"100ml","nutrients":{
+            "energy-kcal":{"value":42,"unit":"kcal"},"sugars":{"value":10.6,"unit":"g"},"proteins":{"value":0,"unit":"g"}}},
+          {"source":"packaging","preparation":"as_sold","per":"serving","per_quantity":330,"per_unit":"ml",
+            "nutrients":{"energy-kcal":{"value":999,"unit":"kcal"},"fiber":{"value":99,"unit":"g"}}}
+        ]}}}""")
+        val candidate=ProviderMappers.openFoodFacts(root,"5449000000996")!!
+        assertEquals(NutrientBasis.PER_100_ML,candidate.basis)
+        val half=candidate.toEntry(.5,"package")
+        assertEquals(165.0,half.volumeMl!!,1e-9)
+        assertEquals(69.3,half.nutrients["energy_kcal"]!!,1e-9)
+        assertEquals(17.49,half.nutrients["sugar_g"]!!,1e-9)
+        assertEquals(0.0,half.nutrients["protein_g"]!!,1e-9)
+        assertNull(half.nutrients["fiber_g"])
+        assertFalse(half.nutrients.containsKey("off_nova_group"))
+    }
+
+    @Test fun halfBottleUsesWholePackageRatherThanHalfOfLabelServing() {
+        val root=json(off("serving",extra="\"per_quantity\":250,\"per_unit\":\"ml\","))
+        root.getAsJsonObject("product").apply {
+            addProperty("quantity","500 ml");addProperty("product_quantity","500");addProperty("product_quantity_unit","ml")
+        }
+        val candidate=ProviderMappers.openFoodFacts(root,"3017620422003")!!
+        val halfBottle=candidate.toEntry(.5,"package")
+        assertEquals(250.0,halfBottle.volumeMl!!,1e-9)
+        assertEquals(40.0,halfBottle.nutrients["energy_kcal"]!!,1e-9)
+        assertEquals(20.0,candidate.toEntry(.5,"serving").nutrients["energy_kcal"]!!,1e-9)
+        assertEquals(1.0,candidate.convertAmount(.5,"package","serving")!!,1e-9)
+        assertEquals(.5,candidate.convertAmount(250.0,"mL","package")!!,1e-9)
+        assertFalse(halfBottle.countsAsWater)
+        val journal=com.khaleel.newleaf.data.Journal(entries=listOf(halfBottle))
+        val restored=com.khaleel.newleaf.data.JournalExports.previewRestore(com.khaleel.newleaf.data.JournalExports.backup(journal)).journal.entries.single()
+        assertEquals(halfBottle,restored)
+        assertTrue(com.khaleel.newleaf.data.JournalExports.json(journal).contains("package"))
+        assertTrue(com.khaleel.newleaf.data.JournalExports.markdown(journal).contains("package"))
+    }
+
+    @Test fun offMultipackMeansWholeOuterPackageAndNeedsNoSizeTextParsing() {
+        val root=json(off())
+        root.getAsJsonObject("product").apply {
+            addProperty("quantity","6 x 250 ml");addProperty("product_quantity",1500);addProperty("product_quantity_unit","ml")
+        }
+        val candidate=ProviderMappers.openFoodFacts(root,"3017620422003")!!
+        assertEquals("6 x 250 ml",candidate.metadata["off_package_label"])
+        assertEquals(750.0,candidate.toEntry(.5,"package").volumeMl!!,1e-9)
+        assertEquals(300.0,candidate.toEntry(.5,"package").nutrients["energy_kcal"]!!,1e-9)
+    }
+
+    @Test fun offMissingInvalidOrAmbiguousPackageSizeDoesNotInventConversion() {
+        for(size in listOf("null","0","-1","\"NaN\"","\"unknown\"")) {
+            val root=json(off())
+            root.getAsJsonObject("product").apply {
+                addProperty("quantity","500 ml");add("product_quantity",JsonParser.parseString(size));addProperty("product_quantity_unit","ml")
+            }
+            val candidate=ProviderMappers.openFoodFacts(root,"3017620422003")!!
+            assertTrue(candidate.portions.none{it.label=="package"})
+            assertNull(candidate.convertAmount(250.0,"mL","package"))
+            assertNull(candidate.toEntry(.5,"package").nutrients["energy_kcal"])
+            assertEquals(100.0,candidate.toEntry(250.0,"mL").nutrients["energy_kcal"]!!,1e-9)
+        }
+        val root=json(off());root.getAsJsonObject("product").apply {
+            addProperty("product_quantity",500);addProperty("product_quantity_unit","oz")
+        }
+        assertTrue(ProviderMappers.openFoodFacts(root,"3017620422003")!!.portions.isEmpty())
+    }
+
+    @Test fun offPackageVolumeDoesNotImplyDensityForPerWeightNutrition() {
+        val root=json(off("100g"));root.getAsJsonObject("product").apply {
+            addProperty("product_quantity",500);addProperty("product_quantity_unit","ml")
+        }
+        val candidate=ProviderMappers.openFoodFacts(root,"3017620422003")!!
+        val half=candidate.toEntry(.5,"package")
+        assertEquals(250.0,half.volumeMl!!,1e-9)
+        assertNull(half.massGrams)
+        assertNull(half.nutrients["energy_kcal"])
+        assertNull(candidate.convertAmount(.5,"package","g"))
     }
 
 }

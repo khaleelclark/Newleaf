@@ -1,3 +1,12 @@
+# Newleaf 0.1.4
+
+- Movement now includes Log weight. Enter a body weight and save; no measurement name is required.
+- Scanned nutrition appears automatically in review, confirmed drafts and entry details. Known zero values remain visible; missing values remain unknown. Details keeps editing/source controls secondary.
+- With a reported package size, review starts at one whole package. Enter 0.5 package or choose Percent of package and enter 50 to log half. Package size and label-serving size are separate; switching compatible units preserves the consumed amount.
+- Barcode lookup now requests normalized package size. A nutrient-bearing as-sold set is preferred over a preceding NOVA-only classification set, without combining nutrient values from different sets.
+- Missing package size leaves measured amount/label serving available; unsupported mass/volume conversion never guesses density. Multipack size means the entire outer package and retains the original label text.
+- Version code 6 and the unchanged signing identity support updating over earlier releases. No schema, credential or gateway change.
+
 # Newleaf 0.1.3
 
 Tracker-based daily logging inspired by Simple's documented food/drink/movement flow. See [VALIDATION.md](VALIDATION.md) for current verification.

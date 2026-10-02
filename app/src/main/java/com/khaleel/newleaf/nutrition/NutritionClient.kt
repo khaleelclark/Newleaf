@@ -164,7 +164,7 @@ class NutritionClient(
         if (openFoodFactsUserAgent.length !in 10..200 || openFoodFactsUserAgent.any { it.code < 32 || it.code > 126 } || !openFoodFactsUserAgent.startsWith("Newleaf/")) throw NutritionException(NutritionError.INVALID_REQUEST)
         if (!validBarcode(barcode)) throw NutritionException(NutritionError.INVALID_REQUEST)
         return unique("barcode:$barcode") {
-            val fields = "code,product_name,product_name_en,generic_name,brands,categories_tags,countries_tags,nutrition"
+            val fields = "code,product_name,product_name_en,generic_name,brands,categories_tags,countries_tags,quantity,product_quantity,product_quantity_unit,nutrition"
             val response = transport.execute(NutritionRequest("GET", "$off$barcode.json?fields=$fields",
                 mapOf("User-Agent" to openFoodFactsUserAgent, "Accept" to "application/json")))
             if (response.status == 404) null else ProviderMappers.openFoodFacts(response.json(), barcode)

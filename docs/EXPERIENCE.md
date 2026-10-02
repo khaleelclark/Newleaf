@@ -6,14 +6,14 @@ Simple-inspired tracker revision — October 2, 2026. Current verification is re
 
 1. Start with the action the user wants: log, repeat, review, or export.
 2. Place frequent actions near the lower part of the screen for one-handed use on the S25 Ultra.
-3. Reveal detail progressively. Names and quantities come before full nutrition and metadata.
+3. Reveal detail progressively. Names and quantities come first. Show populated nutrition automatically; metadata and editing controls stay secondary.
 4. Keep drafts when the keyboard closes, the app backgrounds, or a provider fails.
 5. Give immediate feedback and an Undo action for quick saves and deletes.
 6. Use neutral language: “Logged today,” “Add a meal,” and “No entries yet.” Avoid guilt, streak penalties, food grades, and compulsory targets.
 
 ## 2. Navigation
 
-Bottom navigation: Today, History, Trends and More. Today offers Food → Log food, Drinks → Log drink/one water shortcut, and Movement → Log activity/Add steps. Each opens its form directly. More retains the full Food/Drink/Activity chooser, More ways to log (multi-item Meal, Weight, Steps, Check-in, Daily note), and recoverable Saved drafts.
+Bottom navigation: Today, History, Trends and More. Today offers Food → Log food, Drinks → Log drink/one water shortcut, and Movement → Log activity/Add steps/Log weight. Each opens its form directly. More retains the full Food/Drink/Activity chooser, More ways to log (multi-item Meal, Weight, Steps, Check-in, Daily note), and recoverable Saved drafts.
 
 Scan is visible in the header beside Settings and returns to Today. Capture → automatic Open Food Facts lookup → Log scanned item → Add to journal. The user explicitly chooses Breakfast/Lunch/Dinner/Snack/Other and reviews Food/Drink classification and amount. No record is created until Add to journal.
 
@@ -61,6 +61,7 @@ Water logged / unknown; optional water goal
 Movement
 Steps logged / not yet logged
 [Log activity] [Add steps]
+[Log weight]
 
 Your day
 Saved entries, with their time and amount
@@ -76,7 +77,7 @@ Timeline cards show time, name, a compact portion/summary, and a small type indi
 
 ### Everyday entry and search
 
-Food entry begins with “What did you eat?”, a multiline Food or meal field and an optional meal category. A short description is a valid local entry; typing a description does not infer calories or individual ingredients. A single Save food action remains above the keyboard. Amount, unit and calories are inside More details. If a provider/reusable entry already supplied amount/calories, a summary remains visible so populated data is not concealed.
+Food entry begins with “What did you eat?”, a multiline Food or meal field and an optional meal category. A short description is a valid local entry; typing a description does not infer calories or individual ingredients. A single Save food action remains above the keyboard. Amount, unit and calories are inside More details. If a provider/reusable entry supplied an amount or nutrition, show the amount summary and populated nutrients automatically so those values are not concealed. Known zero values are shown; missing values remain unknown.
 
 Find a food reveals Name/Barcode lookup only on request; multi-item Meal also offers the existing assisted Food list matching. Back to entry abandons lookup without discarding typed fields or the retained barcode. Search remains explicit; choosing a match opens review, Confirm updates the draft, and Save records it.
 
@@ -84,7 +85,7 @@ Meal categories start blank with Breakfast/Lunch/Dinner/Snack/Other; custom exis
 
 ### Scan
 
-Open a camera view with a simple scan boundary, flashlight, manual-code option, and Back. Pause recognition after one code is captured to prevent repeated requests. A captured code immediately starts free Open Food Facts lookup and opens the populated product/portion review on a match, without a separate result-card tap. Typed codes use “Find product” and then follow the same review path. The review shows product name, brand/source, reported portion, and scaled calories. It labels a populated starting amount as a product-label reference, not detected consumption. Editable nutrition, custom units, amount evidence and source details share one Details group. Food/Drink classification uses a visible Log as dropdown. The consumed amount must be reviewed. A missing provider portion stays blank rather than defaulting to one serving; absent nutrition remains unknown. Inside an ordinary editor, “Confirm item” updates the local draft and the editor Save persists it separately. For the main-screen quick scan, the same dialog uses “Log scanned item” and one “Add to journal” action; its callback carries the reviewed category, classification, quantity and nutrition to the parent persistence flow. Busy state blocks duplicate Add, Cancel and dismiss; save errors remain visible for retry. Canceling review leaves the journal unchanged.
+Open a camera view with a simple scan boundary, flashlight, manual-code option, and Back. Pause recognition after one code is captured to prevent repeated requests. A captured code immediately starts free Open Food Facts lookup and opens the populated product/portion review on a match, without a separate result-card tap. Typed codes use “Find product” and then follow the same review path. The review shows product name, brand, reported package/serving sizes, scaled calories and all populated nutrition. It labels a populated starting amount as a product-label reference, not detected consumption. Editable nutrition, custom units, amount evidence and source details share one Details group. Food/Drink classification uses a visible Log as dropdown. The consumed amount must be reviewed. A missing provider portion stays blank rather than defaulting to one serving; absent nutrition remains unknown. Inside an ordinary editor, “Confirm item” updates the local draft and the editor Save persists it separately. For the main-screen quick scan, the same dialog uses “Log scanned item” and one “Add to journal” action; its callback carries the reviewed category, classification, quantity and nutrition to the parent persistence flow. Busy state blocks duplicate Add, Cancel and dismiss; save errors remain visible for retry. Canceling review leaves the journal unchanged.
 
 Lookup progress and failure/not-found feedback appear at the top of the barcode controls. Progress disables duplicate requests and journal save. Unexpected failures use fixed wording; only sanitized NutritionException messages are displayed. Cancellation is checked again after lookup so abandoned results cannot reopen review. Switching Search/Describe methods cancels the preceding request and clears results; request identity checks stop older responses from replacing current results. Failure or no match keeps the code in the locally recoverable draft and visible and offers “Try barcode again”, manual product entry with the barcode retained, or a switch to name search. Camera cancellation leaves the current draft untouched; manual barcode entry remains available when camera access is declined. The fake capture and lookup hooks are used only by offline UI tests; production uses Android scanning and NutritionClient.barcode.
 
@@ -102,7 +103,7 @@ Favorites and recent items are reachable through an expandable section in the me
 
 ## 6. Drink flow
 
-Drink entry asks “What did you drink?” and offers Water/Coffee/Tea/Juice/Milk/Other in a readable selector. Other shows a custom name field. Volume and unit share a row at ordinary text sizes and stack for large text. Choosing a different drink keeps the entered volume and event context but clears prior source nutrition/provenance; it cannot give coffee a previous water or product label's calories. Only Water defaults to the water classification. Selecting the current beverage keeps its snapshot. Calories, category, additions, notes/photos and time remain under More details.
+Drink entry asks “What did you drink?” and offers Water/Coffee/Tea/Juice/Milk/Other in a readable selector. Other shows a custom name field. Volume and unit share a row at ordinary text sizes and stack for large text. Choosing a different drink keeps the entered volume and event context but clears prior source nutrition/provenance; it cannot give coffee a previous water or product label's calories. Only Water defaults to the water classification. Selecting the current beverage keeps its snapshot. Calorie and nutrition editing, category, additions, notes/photos and time remain under More details. Populated nutrition remains visible.
 
 The single quick-water shortcut saves 16 US fl oz (473.2 mL displayed in metric) in one tap, update the total immediately after a successful local write, and display Undo. Repeated taps represent separate drinks; prevent only accidental duplicate submission of the same in-flight save. Undo removes the last identified entry, not whichever entry happens to be latest after an unrelated change.
 
@@ -155,10 +156,16 @@ The shared `PortionDialog` accepts optional `quickLog=false`, `busy=false`, and 
 
 Focused offline regression sources:
 
-- `LoggingUiTest`: name-only food, optional fields, initially absent method menu, one Save, and nutrition hidden in entry Details.
+- `LoggingUiTest`: name-only food, optional fields, initially absent method menu, one Save, unknown-nutrition details secondary, and populated nutrition visible.
 - `FreeNutritionUiTest`: Food list lookup through Find a food, original input preserved when returning to manual entry, free source setup, masked key, collapsed gateway and Saved foods & recipes access from Settings.
 - `BarcodeFlowUiTest`: capture opens review automatically, ordinary Confirm versus Save, retained-code failure/retry and no-match manual continuation, unknown amounts/nutrients, cancellation, drink volume/water correctness, activity type; quickLog category/type reaches one explicit Add, busy blocks Cancel and repeated Add, required quick-scan category blocks adding until selected while unknown amount/nutrition stays blank/null, and save-error retry.
 - `EditorStateTest`: selected category survives provider population alongside event fields and provider snapshots.
 - Existing `BarcodeLookupFlowTest`: duplicate suppression, retained-code retry, cancellation/stale rejection and sanitized errors; unchanged in this revision.
 
 Current build, JVM, signed-release emulator and visual evidence is in [validation](../releases/VALIDATION.md). Earlier 0.1.2 checks are historical. HomeFlowUiTest covers direct food/drink/movement/steps entry and explicit day selection; EditorStateTest verifies that beverage changes cannot retain stale nutrition/provenance or reset entry identity/version. Physical S25 Ultra camera/network behavior and TalkBack remain phone checks.
+
+## Package portions and populated data — 0.1.4
+
+Barcode review shows a reported whole package separately from one label serving. With an explicit normalized package size, it starts at one package. Amount 0.5 package and Percent of package 50 represent the same consumed quantity; all supplied nutrients scale once and remain visible. Unit changes convert the existing consumed amount using explicit definitions, or clear it when conversion is unavailable. A multipack's package is the whole outer package, with its original label text visible. Missing package size offers measured units/known label servings without inventing size or density.
+
+Review, confirmed food/drink drafts, and saved entry details show populated nutrition without opening Details. Extra provider nutrients retain their units; classification (NOVA) and duplicate kJ energy are not nutrition amount rows. Editing/reference provenance remains secondary. Movement → Log weight starts a body measurement with its name supplied, so only weight/unit and Save weight are needed.

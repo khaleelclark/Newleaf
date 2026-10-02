@@ -86,6 +86,7 @@ internal fun JournalScreen(journal:Journal,date:LocalDate,history:Boolean,busy:B
                 Action("Log activity",Modifier.weight(1f),enabled=!busy){onLog(EntryKind.ACTIVITY)}
                 Action("Add steps",Modifier.weight(1f),enabled=!busy,onClick=onSteps)
             }
+            Action("Log weight",Modifier.fillMaxWidth(),enabled=!busy){onLog(EntryKind.WEIGHT)}
         }
         Section("Your day")
         if(rows.isEmpty())Caption(if(query.isNotBlank() || filter!="All")"No records match this view."else"Your entries will appear here.")
