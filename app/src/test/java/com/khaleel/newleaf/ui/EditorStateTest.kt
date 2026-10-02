@@ -14,6 +14,7 @@ class EditorStateTest {
         val entries=EditorDraft.new(EntryKind.FOOD,LocalDate.parse("2026-09-30"),settings).copy(name="Toast",time="12:30").toEntries(settings)
         assertEquals("2026-09-30",entries.single().localDate)
         assertNull(entries.single().nutrients["energy_kcal"])
+        assertEquals("",entries.single().category)
         JournalValidation.journal(Journal(entries))
     }
     @Test fun reusableRecipeKeepsEmbeddedSnapshotsAndDoesNotChangeHistory() {
@@ -69,13 +70,14 @@ class EditorStateTest {
     }
 
     @Test fun standaloneLookupKeepsEventFieldsAndProviderSnapshot() {
-        val draft=EditorDraft.new(EntryKind.FOOD,LocalDate.parse("2026-09-30"),settings).copy(time="08:15",zone="UTC",notes="My note")
+        val draft=EditorDraft.new(EntryKind.FOOD,LocalDate.parse("2026-09-30"),settings).copy(time="08:15",zone="UTC",notes="My note",category="Lunch")
         val food=Entry(kind=EntryKind.FOOD,name="Matched food",quantity=150.0,unit="g",nutrients=mapOf("energy_kcal" to 300.0),source="USDA",sourceId="123",sourceReference=SourceReference(provider="usda",itemId="123"))
         val selected=selectStandaloneItem(draft,food,settings)
         val entry=selected.toEntries(settings).single()
         assertEquals(draft.id,entry.id)
         assertEquals("2026-09-30",entry.localDate)
         assertEquals("My note",entry.notes)
+        assertEquals("Lunch",entry.category)
         assertEquals("USDA",entry.source)
         assertEquals(300.0,entry.nutrients["energy_kcal"]!!,0.0)
     }

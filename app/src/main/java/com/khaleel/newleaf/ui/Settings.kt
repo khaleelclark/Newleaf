@@ -48,7 +48,7 @@ private fun UnitPreferences(settings:AppSettings,onChange:(AppSettings)->Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSettings)->Unit,onExport:()->Unit,onBackup:()->Unit,onRestore:()->Unit) {
+internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSettings)->Unit,onExport:()->Unit,onBackup:()->Unit,onRestore:()->Unit,onLibrary:()->Unit={}) {
     var local by remember{mutableStateOf(settings)};var goal by remember{mutableStateOf(number(settings.waterGoalMl?.let{Units.displayVolume(it,settings.volumeUnit)}))}
     var sourceStatus by remember{mutableStateOf<GatewayStatus?>(null)};var checking by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)}
     val scope=rememberCoroutineScope();val context=LocalContext.current
@@ -62,7 +62,7 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
     ModalBottomSheet(sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),onDismissRequest=onClose,containerColor=MaterialTheme.colorScheme.background,modifier=Modifier.fillMaxHeight(.95f)){
         Column(Modifier.padding(horizontal=22.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(15.dp)){
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Section("Settings");TextButton(onClick=onClose){Text("Close")}}
-            Caption("Preferences, nutrition sources, and your data.")
+            Action("Saved foods & recipes",Modifier.fillMaxWidth(),onClick=onLibrary)
             Disclosure("Units & appearance"){UnitPreferences(local){next->if(next.volumeUnit!=local.volumeUnit && goal.toDoubleOrNull()!=null)goal=number(Units.convert(goal.toDouble(),local.volumeUnit,next.volumeUnit));local=next}}
             Disclosure("Goals & reminders") {
             Panel{Section("Water goal", "Optional. Set a personal goal, or leave blank.");Field("Daily goal · ${if(local.volumeUnit=="ml")"mL" else "US fl oz"}",goal,{goal=it},numeric=true)}
@@ -75,8 +75,8 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
                 Caption("Reminders use Android's inexact scheduling. Dismissing one never creates a journal observation.")
             }
             }
-            Panel{
-                Section("Nutrition sources", "Manual logging, favorites and exports work offline.")
+            Disclosure("Nutrition sources") {
+                Caption("Barcode lookup needs no account. Food search needs a free USDA key.")
                 Caption("Open Food Facts · free barcode lookup, no account needed.\nUSDA FoodData Central · free food search and Describe suggestions. A free USDA API key signup is required.\nNo subscription or paid nutrition service. No hosting needed with your personal key.")
                 OutlinedTextField(value=local.usdaApiKey,onValueChange={local=local.copy(usdaApiKey=it);sourceStatus=null},label={Text("Personal USDA API key")},visualTransformation=PasswordVisualTransformation(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Password),singleLine=true,modifier=Modifier.fillMaxWidth(),shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                 Action("Get a free USDA key",Modifier.fillMaxWidth()){runCatching{uriHandler.openUri("https://fdc.nal.usda.gov/api-key-signup/")}.onFailure{error="The USDA signup page could not open. Visit fdc.nal.usda.gov/api-key-signup/ in your browser."}}

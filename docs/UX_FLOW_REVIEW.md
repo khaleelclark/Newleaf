@@ -1,22 +1,24 @@
-# Newleaf logging and barcode flow revision
+# Newleaf everyday logging revision
 
-The owner tested 0.1.0 on their phone and reported too many scattered controls, too many simultaneous options, poor flow, and a barcode scan that did not visibly populate product information. This review drives the 0.1.1 revision; the specialist implementation and nutrition fix are present. The combined release passed 120 JVM tests and 24 mapped device tests; a final specialist screenshot review remains requested.
+The owner tested 0.1.1 and still found it confusing. The October 2 direction is simple, human-readable daily logging and a main-screen barcode action that opens one reviewed journal Add with a chosen meal category. More disclosure buttons alone do not address that complaint.
 
-## Findings from the shipped source
+## Implemented editor changes
 
-- The logging picker presents eight entry types alongside saved drafts and draft management. Common food, drink and movement tasks need a stronger hierarchy.
-- Food and meal editors display lookup modes beside manual fields, category controls, portions, nutrition, notes, date/time, time zone and photos. Optional details should appear when requested.
-- Barcode capture already starts an Open Food Facts request, but its response becomes a result button. A separate selection step stands between a successful scan and product/portion review.
-- The Open Food Facts mapper discarded recognized products when their nutrition input sets had no supported reference basis. The nutrition source fix retains product identity and leaves nutrition/quantity unknown instead of rejecting the product. Its regression cases passed in the combined 120-test JVM run.
-- Portion review displays unit chips, an editable unit, evidence choices, attribution and nutrition controls together. The primary task is confirming the product and consumed amount.
+- Food and drink ask “What did you have?” and show name, optional amount/volume, unit dropdown, optional calories, optional meal dropdown and one Save. Name-only entries remain useful.
+- No lookup method chips appear initially. Find a food opens Name/Barcode choices, with Food list additionally available in multiple-item meals. Back to entry abandons lookup while retaining the draft and barcode.
+- Activity uses one type dropdown plus distance/time. Other supports a custom name; intensity is secondary.
+- Product review shows one prominent product name, label-reference amount, unit dropdown and calorie preview. Food/Drink is easy to find. Advanced nutrition, amount evidence and source attribution share one Details group.
+- Entry detail shows name/time/portion/calories before one primary Edit; full nutrition/source/technical data are behind Details. Favorites, recipes, notes, photos, custom categories, dates/time zones, exports and restore remain accessible in secondary locations.
+- Saved foods & recipes opens Library from Settings; nutrition setup starts collapsed; masked USDA key, Keystore protection, optional gateway and privacy/export safeguards retain their contracts.
 
-## Intended acceptance
+Today uses Log and Scan at the bottom, one compact Calories/Water/Steps summary and one + 16 oz water shortcut. Custom amounts remain in Log → Drink. Less frequent entries including Daily note remain under More ways to log; date navigation stays in History.
 
-1. Today has one clear logging action and a small set of common entry choices. Less frequent tasks and saved drafts remain accessible through secondary controls.
-2. A new entry initially shows the fields needed for its primary task. Notes, photos, timing and detailed nutrition remain available without competing with it.
-3. A successful barcode capture automatically performs lookup and opens the matched product review, populated with the available name, source nutrition and portion information. It requires explicit confirmation and saving.
-4. Lookup progress, unavailable networking, an unknown barcode and cancellation each have clear states. Retrying or using manual entry preserves the draft; stale results cannot replace a newer lookup.
-5. Missing nutrition and unsupported conversions remain unknown. USDA configuration, credential protection, source provenance, exports, backups, recipes, reminders and photo safeguards continue working.
-6. Focused offline UI/client regressions cover scan-result population and error recovery. The parent runs the combined release build, tests and emulator checks before delivering a signed update with the existing signing identity.
+## Shared quick-scan contract
 
-A fixture-driven scan-result flow does not certify physical camera decoding or Open Food Facts coverage for every product. The owner's physical barcode and phone network behavior remain reproducibility inputs if the revised flow still fails.
+`PortionDialog(candidate, original, allowAdditions=true, quickLog=false, busy=false, saveError=null, onDismiss, onConfirm)` preserves ordinary-editor calls. With quickLog=true it shows Log scanned item and Add to journal; a required Category dropdown starts blank with “Choose a category” and offers Breakfast/Lunch/Dinner/Snack/Other. Add is disabled until the user selects one; ordinary manual-entry categories remain optional. The returned Entry includes the chosen category and Food/Drink kind. No category is inferred and no journal save happens within the dialog. Parent QuickScan owns capture, automatic lookup and persistence after Add. Busy plus an immediate local submission guard blocks duplicate clicks and dismissal; saveError remains visible and unlocks retry when busy clears.
+
+Missing product amounts/nutrients remain blank/null. A populated amount is a label reference requiring review. Default nested-editor mode still confirms only the draft before its separate Save. Existing fake capture and lookup hooks remain offline.
+
+## Validation status
+
+Source-level review and required-file verification are complete. Updated existing Android tests cover new initial/editor/detail hierarchy, lookup/manual continuity and quick-scan category/type/one-add/unknown/busy/error retry. The existing JVM editor-state regression now verifies category preservation through lookup population. No compiler, Gradle, emulator, real provider, private credential or Git operations were performed by the specialist. Parent integration passed 120 JVM tests and 31 signed-release Android emulator tests. Actual main camera launch/denial/Back and keyboard/large-text/dark checks passed at the shown configuration. Final specialist screenshot review and release packaging remain pending. Physical Samsung scan/network behavior and TalkBack remain phone checks; see [validation](../releases/VALIDATION.md).

@@ -16,7 +16,7 @@ class FreeNutritionUiTest {
     private fun openJournal() {
         ui.waitUntil(15_000) {
             ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty() ||
-                ui.onAllNodesWithText("+  Log your day").fetchSemanticsNodes().isNotEmpty()
+                ui.onAllNodesWithText("Log").fetchSemanticsNodes().isNotEmpty()
         }
         if (ui.onAllNodesWithText("Start your journal").fetchSemanticsNodes().isNotEmpty()) {
             ui.onNodeWithText("Start your journal").performScrollTo().performClick()
@@ -25,17 +25,21 @@ class FreeNutritionUiTest {
 
     @Test fun describeExplainsItemListsAndKeepsTypedInputForManualContinuation() {
         openJournal()
-        ui.onNodeWithText("+  Log your day").performClick()
+        ui.onNodeWithText("Log").performClick()
         ui.onNodeWithText("More ways to log").performScrollTo().performClick()
         ui.onNodeWithText("Meal").performScrollTo().performClick()
-        ui.onNodeWithText("Describe").performScrollTo().performClick()
+        ui.onNodeWithText("Find a food").performScrollTo().performClick()
+        ui.onNode(hasText("Name") and hasClickAction()).performScrollTo().performClick()
+        ui.onNodeWithText("Food list").performClick()
         ui.onNodeWithText("Describe foods").performScrollTo().performTextInput("2 eggs, 1 cup milk")
         ui.onNodeWithText("List up to 8 foods separated by commas or new lines", substring=true).assertExists()
-        ui.onNodeWithText("Confirm each suggested food and portion", substring=true).assertExists()
+        ui.onNodeWithText("Check each suggestion and amount", substring=true).assertExists()
         ui.onNodeWithText("Find suggestions").assertExists()
         ui.onNodeWithText("Nutritionix", substring=true).assertDoesNotExist()
-        ui.onNodeWithText("Manual").performScrollTo().performClick()
-        ui.onNodeWithText("Describe").performScrollTo().performClick()
+        ui.onNodeWithText("Back to entry").performScrollTo().performClick()
+        ui.onNodeWithText("Find a food").performScrollTo().performClick()
+        ui.onNode(hasText("Name") and hasClickAction()).performScrollTo().performClick()
+        ui.onNodeWithText("Food list").performClick()
         ui.onNodeWithText("2 eggs, 1 cup milk").assertExists()
         ui.onNodeWithText("Close").performScrollTo().performClick()
     }
@@ -43,7 +47,8 @@ class FreeNutritionUiTest {
     @Test fun settingsExplainsFreeSourcesAndRequiredUsdaKeySignup() {
         openJournal()
         ui.onNodeWithContentDescription("Settings").performClick()
-        ui.onNodeWithText("Nutrition sources").performScrollTo()
+        ui.onNodeWithText("Personal USDA API key").assertDoesNotExist()
+        ui.onNodeWithText("Nutrition sources").performScrollTo().performClick()
         ui.onNodeWithText("free barcode lookup, no account needed", substring=true).assertExists()
         ui.onNodeWithText("A free USDA API key signup is required", substring=true).assertExists()
         ui.onNodeWithText("No subscription or paid nutrition service", substring=true).assertExists()
@@ -62,4 +67,12 @@ class FreeNutritionUiTest {
         ui.onNodeWithText("Gateway URL · https://your-host").assertDoesNotExist()
         ui.onNodeWithText("Save preferences").performScrollTo().performClick()
     }
+    @Test fun savedFoodsAndRecipesRemainAccessibleFromSettings() {
+        openJournal()
+        ui.onNodeWithContentDescription("Settings").performClick()
+        ui.onNodeWithText("Saved foods & recipes").performScrollTo().performClick()
+        ui.onNodeWithText("Your library").assertExists()
+        ui.onNodeWithText("Find in your library").assertExists()
+    }
+
 }

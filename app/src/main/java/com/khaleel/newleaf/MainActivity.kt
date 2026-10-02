@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = JournalHolder(JournalRepository(applicationContext)) as T
         })[JournalHolder::class.java]
         if(savedInstanceState==null)holder.pendingMealId.value=intent.getStringExtra("checkin_meal_id")
-        setContent { val pending by holder.pendingMealId.collectAsState();NewleafApp(holder.repository,pending){holder.pendingMealId.value=null} }
+        setContent { val pending by holder.pendingMealId.collectAsState();NewleafApp(holder.repository,pending,onPendingHandled={holder.pendingMealId.value=null}) }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

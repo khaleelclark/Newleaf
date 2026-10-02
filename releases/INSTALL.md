@@ -1,8 +1,8 @@
-# Install and use Newleaf 0.1.1
+# Install and use Newleaf 0.1.2
 
 ## On your Galaxy S25 Ultra
 
-1. Download `Newleaf-0.1.1.apk` from the Project files to your phone.
+1. Download `Newleaf-0.1.2.apk` from the Project files to your phone.
 2. Open the file through Samsung My Files or your download notification.
 3. If Android asks, allow app installation for the app you used to open this file, then tap Install.
 4. If you already have Newleaf installed, install this update over it; do not uninstall. Your local journal and source credentials stay on the device.
@@ -14,15 +14,15 @@ No diary account is needed. The app starts empty; fictional sample exports are s
 
 ## Daily use
 
-- Today shows known logged calories, water, steps, and your timeline.
-- Tap + Log your day for Food, Drink or Activity. More ways to log contains Meal, Weight, Steps, Check-in and Daily note.
-- Enter a name to log a food quickly. Expand Portion & calories when needed; More details holds favorites, notes/photos and date/time.
-- Meals support manual items, online food search, barcode lookup, and USDA-assisted meal descriptions when configured.
-- For packaged food, choose Barcode → Scan barcode. A successful match opens the populated product review automatically. Confirm the item, then tap Save food or Save drink. Typed barcode lookup follows the same path. If camera access is declined, enter the code directly or use Search/Manual.
-- Review suggested foods and portions before saving. Blank calories/nutrients stay unknown. If a product has no supported nutrition, its identity still appears and missing values stay unknown. Failed/unknown lookups retain the code for retry or manual entry.
-- Save favorites, repeat a previous meal, or use Library for saved meals and recipes.
-- History lets you log/edit earlier dates. Trends show the recorded data and its gaps.
-- Units, appearance, an optional water goal, source settings, and portability are in Settings.
+- Today shows a small summary and your day's entries. Log and Scan stay visible at the bottom.
+- Tap Scan to open the camera immediately and log for today. Point it at a packaged product's barcode; a match opens the product automatically. Choose Breakfast, Lunch, Dinner, Snack or Other, check the amount you had, then tap Add to journal. There is one save step. Cancel saves nothing.
+- If camera access is declined or a product cannot be found, type the barcode, scan again or tap Enter it yourself. No nutrition value is guessed.
+- Tap Log, then Food, Drink or Activity. Enter what you had or did and tap Save. Amount, calories and meal category can be left blank. Optional information remains optional.
+- Find a food opens name search or barcode lookup when you want catalog information. Search needs your free USDA key; scanning does not.
+- Tap + 16 oz water for a quick water entry, then Undo if needed. Use Log → Drink for a different amount.
+- More ways to log contains a whole Meal, Weight, Steps, How I felt and Daily note. Saved drafts are available there too.
+- Tap an entry to view or edit it. Detailed nutrition and sources are under Details.
+- History lets you browse other dates; Trends shows recorded totals. Settings holds Saved foods & recipes, units, goals/reminders, source setup and exports/backups.
 
 The app asks for camera permission only when needed. Photo selection uses Android's picker. Notification permission is needed only for optional check-in reminders. Manual logging needs no location, step-sensor, or health-account access.
 

@@ -29,7 +29,7 @@ internal class BarcodeLookupFlow(private val lookup:suspend (String)->FoodCandid
     var message by mutableStateOf<String?>(null); private set
     fun edit(value:String) { if(!loading){code=value;message=null} }
     fun cameraDenied() {
-        message="Camera access wasn't allowed. Type the barcode below, or switch to Search or Manual. Your entry is kept."
+        message="Camera access wasn't allowed. Type the barcode below or enter the item yourself."
     }
     suspend fun find(value:String=code):FoodCandidate? {
         if(loading || value.isBlank())return null

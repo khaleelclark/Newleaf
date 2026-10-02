@@ -1,3 +1,14 @@
+# Newleaf 0.1.2
+
+A further simplification after the owner tested 0.1.1. See [VALIDATION.md](VALIDATION.md) for current release evidence and device limits.
+
+- Today has visible Log and Scan actions. Scan opens the camera directly, looks up the product, then lets you choose a meal category and review its amount before one Add to journal action.
+- Smaller daily summary, one quick-water shortcut, simpler timeline, and fewer repeated controls and explanatory paragraphs.
+- Food/drink entry uses plain questions and readable selectors. Catalog lookup is opened only when requested; optional and technical details stay secondary.
+- Activity, entry details and Settings use clearer labels and fewer simultaneous choices. Saved foods and recipes remain available in Settings.
+- Missing catalog portions/nutrition remain unknown. Cancellation creates no record; a save stays explicit. Lookup failure offers retry or manual entry.
+- Version code 4 and the existing signing identity support updating over 0.1.0/0.1.1. Local journal and protected source credentials stay on the device.
+
 # Newleaf 0.1.1
 
 UX and barcode revision requested after the owner tested 0.1.0. Release verification is recorded in [VALIDATION.md](VALIDATION.md).

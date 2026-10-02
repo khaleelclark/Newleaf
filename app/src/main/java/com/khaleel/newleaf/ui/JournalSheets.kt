@@ -18,28 +18,44 @@ internal fun EntryDetail(entry:Entry,journal:Journal,onClose:()->Unit,onEdit:(En
             Caption("${kindName(entry.kind).uppercase()} · ${entry.localDate} · ${entryTime(entry)}")
             Text(entry.name,style=MaterialTheme.typography.headlineLarge)
             if(entry.category.isNotBlank())Caption(entry.category)
-            if(entry.notes.isNotBlank())Panel{Text(entry.notes)}
+
             if(entry.kind==EntryKind.MEAL){
                 val components=journal.entries.filter{it.mealId==entry.id && it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)}
                 Section("Meal items", "Foods and drinks are counted once in the day's totals.")
                 components.forEach { item->Panel {Text(item.name,style=MaterialTheme.typography.titleMedium);Caption("${number(item.quantity)} ${item.unit} · ${item.nutrients["energy_kcal"]?.let{"${number(it)} kcal"} ?: "Calories unknown"}");Action("Edit item"){onEdit(item)}} }
-                Action("How did you feel?",Modifier.fillMaxWidth(),primary=true,onClick=onCheckin)
+                Action("How did you feel?",Modifier.fillMaxWidth(),onClick=onCheckin)
                 val checkins=journal.entries.filter{it.mealId==entry.id && it.kind==EntryKind.CHECKIN}.sortedBy{it.occurredAt}
                 checkins.forEach { checkin->Panel {Text(checkin.tags.joinToString(" · ").ifBlank{checkin.name});Caption("${checkin.localDate} ${entryTime(checkin)} · ${number(EventTimes.elapsedSeconds(checkin,entry)/60.0)} min after meal");if(checkin.notes.isNotBlank())Caption(checkin.notes);Action("Edit check-in"){onEdit(checkin)}} }
                 Disclosure("Reuse this meal"){Action("Repeat meal",Modifier.fillMaxWidth(),onClick=onRepeat);Action("Save template",Modifier.fillMaxWidth(),onClick=onTemplate)}
             }
             if(entry.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
-                Panel {Section("Portion & nutrition");Caption("${number(entry.quantity)} ${entry.unit} · ${entry.portionEvidence}");nutrientLabels.forEach{(key,label)->Caption("$label: ${entry.nutrients[key]?.let{number(it)} ?: "Unknown"}")};Caption("Source: ${entry.source}${entry.sourceId?.let{" · $it"} ?: ""}");entry.sourceReference?.let{source->if(source.attribution.isNotBlank())Caption(source.attribution);if(source.license.isNotBlank())Caption(source.license);if(!source.exportAllowed || !source.snapshotAllowed)Caption("Storage/export permission pending; full exports containing this source are blocked.")};Caption("Match: ${entry.matchStatus}");entry.nutrientEvidence["energy_kcal"]?.let{Caption("${it.status} · ${it.basis}")}}
-                Action(if(entry.isFavorite)"Remove favorite" else "Save as favorite",Modifier.fillMaxWidth(),onClick=onFavorite)
+                Caption("${number(entry.quantity)} ${entry.unit} · ${entry.nutrients["energy_kcal"]?.let{"${number(it)} kcal"} ?: "Calories unknown"}")
+
             }
             if(entry.kind==EntryKind.WEIGHT)Caption(weightLabel(entry.weightKg,journal.settings))
             if(entry.kind==EntryKind.ACTIVITY)Caption("${distanceLabel(entry.distanceMeters,journal.settings)} · ${entry.durationSeconds?.let{"${number(it/60.0)} min"} ?: "Duration unknown"}")
             if(entry.kind==EntryKind.STEPS)Caption("${entry.steps} steps · manual total")
             if(entry.kind==EntryKind.CHECKIN){Caption(entry.tags.joinToString(" · "));entry.ratings.forEach{(name,value)->Caption("$name: $value / 5")};entry.mealId?.let{id->journal.entries.find{it.id==id}?.let{meal->Caption("Linked to ${meal.name} · ${number(EventTimes.elapsedSeconds(entry,meal)/60.0)} min after meal")}}}
-            if(entry.originalText.isNotBlank())Panel{Section("Original description");Text(entry.originalText)}
-            if(entry.photoPaths.isNotEmpty()){Section("Attached photos");PhotoGallery(entry.photoPaths)}
-            Disclosure("Record details"){Caption("Time zone: ${entry.zoneId}\nEntered: ${entry.createdAt}\nRevision: ${entry.version}")}
-            Action("Edit entry",Modifier.fillMaxWidth(),primary=true){onEdit(entry)}
+            Action("Edit",Modifier.fillMaxWidth(),primary=true){onEdit(entry)}
+            Disclosure("Details") {
+                if(entry.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
+                    nutrientLabels.forEach{(key,label)->Caption("$label: ${entry.nutrients[key]?.let{number(it)} ?: "Unknown"}")}
+                    Caption("Amount: ${entry.portionEvidence}")
+                    Caption("Source: ${entry.source}${entry.sourceId?.let{" · $it"} ?: ""}")
+                    entry.sourceReference?.let{source->
+                        if(source.attribution.isNotBlank())Caption(source.attribution)
+                        if(source.license.isNotBlank())Caption(source.license)
+                        if(!source.exportAllowed || !source.snapshotAllowed)Caption("Storage/export permission pending; full exports containing this source are blocked.")
+                    }
+                    Caption("Match: ${entry.matchStatus}")
+                    entry.nutrientEvidence["energy_kcal"]?.let{Caption("${it.status} · ${it.basis}")}
+                    Action(if(entry.isFavorite)"Remove favorite"else"Save as favorite",Modifier.fillMaxWidth(),onClick=onFavorite)
+                }
+                if(entry.notes.isNotBlank())Panel{Text(entry.notes)}
+                if(entry.originalText.isNotBlank())Panel{Section("Original description");Text(entry.originalText)}
+                if(entry.photoPaths.isNotEmpty()){Section("Attached photos");PhotoGallery(entry.photoPaths)}
+                Caption("Time zone: ${entry.zoneId}\nEntered: ${entry.createdAt}\nRevision: ${entry.version}")
+            }
             Disclosure("More entry actions"){Action("Delete entry",Modifier.fillMaxWidth(),onClick=onDelete)}
             TextButton(onClick=onClose){Text("Close")}
             Spacer(Modifier.height(24.dp))

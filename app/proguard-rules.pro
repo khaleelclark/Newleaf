@@ -11,6 +11,8 @@
 # The offline UI tests invoke these composables with fake lookup/capture hooks.
 # Retain their calling convention and hooks across the separate APK boundary.
 -keep class com.khaleel.newleaf.ui.EntryEditorKt { *; }
+-keep class com.khaleel.newleaf.ui.QuickScanKt { *; }
+-keep class com.khaleel.newleaf.ui.NewleafAppKt { *; }
 -keep class com.khaleel.newleaf.ui.DesignKt { *; }
 -keepattributes Signature,InnerClasses,EnclosingMethod
 -keep class com.google.gson.reflect.TypeToken { *; }

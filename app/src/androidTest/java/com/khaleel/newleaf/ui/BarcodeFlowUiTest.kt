@@ -37,7 +37,11 @@ class BarcodeFlowUiTest {
             NewleafTheme("light") { EntryEditor(draft.value,Journal(),false,{draft.value=it},{saves++},{},
                 barcodeLookup=lookup,barcodeCapture={captured->captured(code)}) }
         } }
-        if(openBarcode)ui.onNodeWithText("Barcode").performScrollTo().performClick()
+        if(openBarcode) {
+            ui.onNodeWithText("Find a food").performScrollTo().performClick()
+            ui.onNodeWithContentDescription("Find by: Name").performScrollTo().performClick()
+            ui.onNodeWithText("Barcode").performClick()
+        }
         return draft to { saves }
     }
 
@@ -47,13 +51,13 @@ class BarcodeFlowUiTest {
         ui.onNodeWithText("Scan barcode").performScrollTo().performClick()
         ui.onNodeWithText("Review portion").assertIsDisplayed()
         ui.onNodeWithText("Fictional cereal").assertExists()
-        ui.onNodeWithText("Fixture brand · Open Food Facts").assertExists()
-        ui.onNodeWithText("Quantity").assertTextContains("1")
+        ui.onNodeWithText("Fixture brand").assertExists()
+        ui.onNode(hasText("Amount (optional)") and SemanticsMatcher.expectValue(SemanticsProperties.EditableText,AnnotatedString("1"))).assertIsDisplayed()
         ui.onNodeWithText("90 kcal").assertExists()
-        ui.onNodeWithText("Starting amount from the product label",substring=true).assertExists()
+        ui.onNodeWithText("Label amount:",substring=true).assertExists()
         ui.onNodeWithText("Calories · kcal (whole consumed portion)").assertDoesNotExist()
         ui.onNodeWithText("Unit / serving label").assertDoesNotExist()
-        ui.onNodeWithText("Edit nutrition").performScrollTo().performClick()
+        ui.onNodeWithText("Details").performScrollTo().performClick()
         ui.onNodeWithText("Calories · kcal (whole consumed portion)").assertTextContains("90")
         ui.runOnIdle { assertEquals(1,requests);assertEquals("",draft.value.name);assertEquals(0,saves()) }
         ui.onNodeWithText("Confirm item").assertIsDisplayed().performClick()
@@ -101,8 +105,8 @@ class BarcodeFlowUiTest {
         val (draft,saves)=editor(EntryKind.MEAL) { product.copy(quantity=null,unit="serving",basis=NutrientBasis.UNKNOWN,basisQuantity=null,basisUnit="serving",
             nutrients=mapOf("energy_kcal" to null,"protein_g" to null),servingMassG=null,portions=emptyList(),metadata=mapOf("off_nutrition_status" to "unsupported_input_sets")) }
         ui.onNodeWithText("Scan barcode").performScrollTo().performClick()
-        ui.onNodeWithText("Portion unknown. Enter an amount",substring=true).assertExists()
-        ui.onNodeWithText("Quantity").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText,AnnotatedString("")))
+        ui.onNodeWithText("Amount unknown. Leave blank",substring=true).assertExists()
+        ui.onNodeWithText("Amount (optional)").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText,AnnotatedString("")))
         ui.onNodeWithText("Calories unknown for this portion").assertExists()
         ui.runOnIdle { assertTrue(draft.value.items.isEmpty()) }
         ui.onNodeWithText("Confirm item").performClick()
@@ -117,8 +121,8 @@ class BarcodeFlowUiTest {
         val (draft,saves)=editor(EntryKind.DRINK,openBarcode=false) { error("Manual flow must not look up a provider") }
         ui.onNodeWithText("Notes (optional)").assertDoesNotExist()
         ui.onNodeWithText("Calories · kcal (whole consumed portion)").assertDoesNotExist()
-        ui.onNodeWithText("Name").performTextReplacement("Coffee")
-        ui.onNodeWithText("Volume").performTextInput("16")
+        ui.onNodeWithText("Drink name").performTextReplacement("Coffee")
+        ui.onNodeWithText("Volume (optional)").performTextInput("16")
         ui.onNodeWithText("Save drink").assertIsDisplayed().performClick()
         ui.runOnIdle {
             val entry=draft.value.toEntries(AppSettings()).single()
@@ -149,7 +153,7 @@ class BarcodeFlowUiTest {
         val response=CompletableDeferred<FoodCandidate?>()
         val (draft,saves)=editor { withContext(NonCancellable){response.await()} }
         ui.onNodeWithText("Scan barcode").performScrollTo().performClick()
-        ui.onNodeWithText("Manual").performScrollTo().performClick()
+        ui.onNodeWithText("Back to entry").performScrollTo().performClick()
         ui.runOnIdle { response.complete(product) }
         ui.waitForIdle()
         ui.onNodeWithText("Review portion").assertDoesNotExist()
@@ -158,6 +162,63 @@ class BarcodeFlowUiTest {
             assertEquals(code,draft.value.lookupBarcode)
             assertEquals(0,saves())
         }
+    }
+
+    @Test fun quickScanCategoryAndTypeReachOneExplicitJournalAdd() {
+        var confirmed:Entry?=null
+        var adds=0
+        ui.runOnUiThread { ui.activity.setContent {
+            NewleafTheme("light") { PortionDialog(product,null,quickLog=true,onDismiss={},onConfirm={confirmed=it;adds++}) }
+        } }
+        ui.onNodeWithText("Log scanned item").assertIsDisplayed()
+        ui.onNodeWithText("Confirm item").assertDoesNotExist()
+        ui.onNodeWithText("Save food").assertDoesNotExist()
+        ui.onNodeWithText("Add to journal").assertIsNotEnabled()
+        ui.onNodeWithText("Choose a category").performScrollTo().performClick()
+        ui.onNodeWithText("Lunch").performClick()
+        ui.onNode(hasText("Food") and hasClickAction()).performScrollTo().performClick()
+        ui.onNodeWithText("Drink").performClick()
+        ui.runOnIdle { assertEquals(0,adds) }
+        ui.onNodeWithText("Add to journal").assertIsDisplayed().performClick()
+        ui.onNodeWithText("Adding…").assertIsNotEnabled()
+        ui.runOnIdle {
+            assertEquals(1,adds)
+            assertEquals("Lunch",confirmed!!.category)
+            assertEquals(EntryKind.DRINK,confirmed!!.kind)
+            assertEquals(code,confirmed!!.sourceReference!!.barcode)
+        }
+    }
+
+    @Test fun quickScanUnknownsBusyCancelAndFailedSaveRetryStaySafe() {
+        val busy=mutableStateOf(true)
+        val failure=mutableStateOf<String?>(null)
+        var adds=0
+        var dismisses=0
+        var confirmed:Entry?=null
+        val unknown=product.copy(quantity=null,unit="serving",basis=NutrientBasis.UNKNOWN,basisQuantity=null,
+            nutrients=mapOf("energy_kcal" to null),servingMassG=null,portions=emptyList())
+        ui.runOnUiThread { ui.activity.setContent {
+            NewleafTheme("light") { PortionDialog(unknown,null,quickLog=true,busy=busy.value,saveError=failure.value,
+                onDismiss={dismisses++},onConfirm={confirmed=it;adds++;busy.value=true}) }
+        } }
+        ui.onNodeWithText("Adding…").assertIsNotEnabled()
+        ui.onNodeWithText("Cancel").assertIsNotEnabled()
+        ui.onNodeWithText("Calories unknown for this portion").assertExists()
+        ui.runOnIdle { assertEquals(0,adds);assertEquals(0,dismisses);busy.value=false }
+        ui.onNodeWithText("Add to journal").assertIsNotEnabled()
+        ui.onNodeWithText("Choose a category").performScrollTo().performClick()
+        ui.onNodeWithText("Snack").performClick()
+        ui.onNodeWithText("Add to journal").performClick()
+        ui.runOnIdle {
+            assertEquals(1,adds)
+            assertNull(confirmed!!.quantity)
+            assertNull(confirmed!!.nutrients["energy_kcal"])
+            assertEquals("Snack",confirmed!!.category)
+            failure.value="Could not save. Try again.";busy.value=false
+        }
+        ui.onNodeWithText("Could not save. Try again.").assertIsDisplayed()
+        ui.onNodeWithText("Add to journal").assertIsEnabled().performClick()
+        ui.runOnIdle { assertEquals(2,adds);assertEquals(0,dismisses) }
     }
 
 }

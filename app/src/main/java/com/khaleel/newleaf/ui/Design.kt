@@ -84,8 +84,8 @@ fun Choices(labels: List<String>, selected: String, onSelect: (String)->Unit) {
 }
 
 @Composable
-fun Field(label: String, value: String, onChange:(String)->Unit, modifier:Modifier=Modifier, numeric:Boolean=false, lines:Int=1) {
-    OutlinedTextField(value=value,onValueChange=onChange,label={Text(label)},modifier=modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),singleLine=lines==1,minLines=lines,keyboardOptions=KeyboardOptions(keyboardType=if(numeric)KeyboardType.Decimal else KeyboardType.Text))
+fun Field(label: String, value: String, onChange:(String)->Unit, modifier:Modifier=Modifier, numeric:Boolean=false, lines:Int=1,enabled:Boolean=true) {
+    OutlinedTextField(value=value,onValueChange=onChange,enabled=enabled,label={Text(label)},modifier=modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),singleLine=lines==1,minLines=lines,keyboardOptions=KeyboardOptions(keyboardType=if(numeric)KeyboardType.Decimal else KeyboardType.Text))
 }
 
 @Composable
@@ -103,5 +103,24 @@ internal fun Disclosure(label:String,content:@Composable ()->Unit) {
             Text(if(expanded)"Hide ${label.lowercase()}" else label)
         }
         if(expanded)content()
+    }
+}
+
+/** A single readable choice replaces rows of competing chips. */
+@Composable
+internal fun SelectField(label:String, value:String, options:List<String>, enabled:Boolean=true, optional:Boolean=false, placeholder:String?=null, onSelect:(String)->Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Caption(label)
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick={expanded=true},enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).semantics { contentDescription="$label: ${value.ifBlank{if(optional)"optional, not selected"else"not selected"}}" },shape=RoundedCornerShape(14.dp)) {
+                Text(value.ifBlank{placeholder ?: if(optional)"Choose (optional)"else"Choose"},Modifier.weight(1f))
+                Text("▾")
+            }
+            DropdownMenu(expanded=expanded && enabled,onDismissRequest={expanded=false}) {
+                if(optional)DropdownMenuItem(text={Text("Leave blank")},onClick={expanded=false;onSelect("")})
+                options.distinct().forEach { option->DropdownMenuItem(text={Text(option)},onClick={expanded=false;onSelect(option)}) }
+            }
+        }
     }
 }
