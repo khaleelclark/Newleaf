@@ -191,20 +191,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                     NutrientFields(draft.nutrients){updated->onChange(draft.copy(nutrients=updated,overrides=(draft.overrides+updated.filter{(k,v)->v!=draft.nutrients[k]}.keys).distinct()))}
                 }
                 }
-                Disclosure("Portion details & favorites") {
-                Choices(listOf("unspecified","measured","estimated"),draft.evidence){onChange(draft.copy(evidence=it))}
-                if(draft.isNew)Choices(listOf("Log now","Save to library"),if(draft.saveAs=="library")"Save to library"else"Log now"){onChange(draft.copy(saveAs=if(it=="Save to library")"library"else"journal"))}
-                Row { Checkbox(draft.favorite,{onChange(draft.copy(favorite=it))});Text("Save usual portion as a favorite",Modifier.padding(top=12.dp)) }
-                if(draft.kind==EntryKind.DRINK)Row { Checkbox(draft.water,{onChange(draft.copy(water=it))});Text("Count as water",Modifier.padding(top=12.dp))}
-                }
-                if(draft.kind==EntryKind.DRINK) {
-                    Disclosure("Drink additions") {
-                    Caption("Keep milk, sugar, or other additions inside this drink's total.")
-                    draft.items.forEach { item->Panel{Text(item.name);Caption("${number(item.quantity)} ${item.unit} · ${item.nutrients["energy_kcal"]?.let{"${number(it)} kcal"} ?: "Calories unknown"}");Action("Remove addition"){onChange(draft.copy(items=draft.items-item))}} }
-                    Action("+ Add milk, sugar or another addition"){selectingStandalone=false;reviewingCandidate=null;reviewingEntry=null;itemEditing=null;itemDialog=true}
-                    Caption("Nutrition fields above describe the base drink. Additions contribute once inside its total.")
-                    }
-                }
+
             }
             if(draft.kind==EntryKind.ACTIVITY) {
                 Choices(listOf("Walk","Hike","Run","Cycling","Workout"),draft.name){onChange(draft.copy(name=it))}
@@ -225,6 +212,23 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                 journal.entries.filter{it.kind==EntryKind.MEAL && !it.isLibrary}.sortedByDescending{it.occurredAt}.take(15).forEach{meal->Action("${if(draft.mealId==meal.id)"✓ " else ""}${meal.name} · ${meal.localDate} ${entryTime(meal)}"){onChange(draft.copy(mealId=meal.id))}}
             }
             if(draft.kind==EntryKind.NOTE) { Choices(listOf("unmarked","partial","complete"),draft.completeness){onChange(draft.copy(completeness=it))};Caption("Daily logging completeness is your choice; it is never inferred.") }
+            val additionalDetails: @Composable () -> Unit = {
+                if(draft.kind in listOf(EntryKind.FOOD,EntryKind.DRINK)) {
+                Disclosure("Favorites & portion evidence") {
+                Choices(listOf("unspecified","measured","estimated"),draft.evidence){onChange(draft.copy(evidence=it))}
+                if(draft.isNew)Choices(listOf("Log now","Save to library"),if(draft.saveAs=="library")"Save to library"else"Log now"){onChange(draft.copy(saveAs=if(it=="Save to library")"library"else"journal"))}
+                Row { Checkbox(draft.favorite,{onChange(draft.copy(favorite=it))});Text("Save usual portion as a favorite",Modifier.padding(top=12.dp)) }
+                if(draft.kind==EntryKind.DRINK)Row { Checkbox(draft.water,{onChange(draft.copy(water=it))});Text("Count as water",Modifier.padding(top=12.dp))}
+                }
+                if(draft.kind==EntryKind.DRINK) {
+                    Disclosure("Drink additions") {
+                    Caption("Keep milk, sugar, or other additions inside this drink's total.")
+                    draft.items.forEach { item->Panel{Text(item.name);Caption("${number(item.quantity)} ${item.unit} · ${item.nutrients["energy_kcal"]?.let{"${number(it)} kcal"} ?: "Calories unknown"}");Action("Remove addition"){onChange(draft.copy(items=draft.items-item))}} }
+                    Action("+ Add milk, sugar or another addition"){selectingStandalone=false;reviewingCandidate=null;reviewingEntry=null;itemEditing=null;itemDialog=true}
+                    Caption("Nutrition fields above describe the base drink. Additions contribute once inside its total.")
+                    }
+                }
+                }
             Disclosure("Notes & photos") {
             Field("Notes (optional)",draft.notes,{onChange(draft.copy(notes=it))},lines=3)
             Section("Photos", "Stored privately on this phone. Included in exports only when you choose.")
@@ -237,6 +241,8 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
             Field("Date · YYYY-MM-DD",draft.date,{onChange(draft.copy(date=it,offset=""))})
             if(draft.kind !in listOf(EntryKind.STEPS,EntryKind.NOTE)) {Field("Time · HH:mm (seconds optional)",draft.time,{onChange(draft.copy(time=it,offset=""))});Disclosure("Time zone"){Field("Time zone",draft.zone,{onChange(draft.copy(zone=it,offset=""))})};val offsets=runCatching{ZoneId.of(draft.zone).rules.getValidOffsets(LocalDateTime.of(LocalDate.parse(draft.date),LocalTime.parse(draft.time)))}.getOrDefault(emptyList());if(offsets.size>1){Caption("This clock time occurs twice. Choose its UTC offset.");Choices(offsets.map { it.toString() },draft.offset){onChange(draft.copy(offset=it))}} }
             }
+            }
+            if(draft.kind in listOf(EntryKind.FOOD,EntryKind.DRINK))Disclosure("More details",content=additionalDetails)else additionalDetails()
             if(lookupMode=="Manual")error?.let{Text(it,color=MaterialTheme.colorScheme.error)}
             Caption("Draft saved locally while you type. Close to continue later.")
             Spacer(Modifier.height(24.dp))

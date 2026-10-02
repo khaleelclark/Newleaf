@@ -16,7 +16,7 @@ No diary account is needed. The app starts empty; fictional sample exports are s
 
 - Today shows known logged calories, water, steps, and your timeline.
 - Tap + Log your day for Food, Drink or Activity. More ways to log contains Meal, Weight, Steps, Check-in and Daily note.
-- Enter a name to log a food quickly. Expand optional portion/calorie, notes/photo and date/time controls when needed.
+- Enter a name to log a food quickly. Expand Portion & calories when needed; More details holds favorites, notes/photos and date/time.
 - Meals support manual items, online food search, barcode lookup, and USDA-assisted meal descriptions when configured.
 - For packaged food, choose Barcode → Scan barcode. A successful match opens the populated product review automatically. Confirm the item, then tap Save food or Save drink. Typed barcode lookup follows the same path. If camera access is declined, enter the code directly or use Search/Manual.
 - Review suggested foods and portions before saving. Blank calories/nutrients stay unknown. If a product has no supported nutrition, its identity still appears and missing values stay unknown. Failed/unknown lookups retain the code for retry or manual entry.

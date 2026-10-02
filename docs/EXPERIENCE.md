@@ -103,7 +103,7 @@ Favorites and recent items are reachable through an expandable section in the me
 
 ## 6. Drink flow
 
-Show Water, Coffee, Tea, and Other shortcuts; the name field accepts any drink. Changing a manually typed name to a non-water drink removes the default water classification. Main inputs are drink and volume/unit. Nutrition, portion evidence/favorite options, milk/sugar additions, notes/photos, and date/time expand separately. A selected provider product keeps its reported portion unit and nutrition snapshot.
+Show Water, Coffee, Tea, and Other shortcuts; the name field accepts any drink. Changing a manually typed name to a non-water drink removes the default water classification. Main inputs are drink and volume/unit. Nutrition expands directly; More details groups portion evidence/favorites, milk/sugar additions, notes/photos, and date/time. A selected provider product keeps its reported portion unit and nutrition snapshot.
 
 Quick water presets save in one tap, update the total immediately after a successful local write, and display Undo. Repeated taps represent separate drinks; prevent only accidental duplicate submission of the same in-flight save. Undo removes the last identified entry, not whichever entry happens to be latest after an unrelated change.
 
@@ -152,7 +152,7 @@ This is a custom component system; avoid default Material color schemes, promine
 
 Today keeps known logged calories, water, steps, quick water, and the timeline. Nutrition coverage counts are available through “Nutrition coverage”; unknown and partial states stay visible in plain language. The daily-note action follows the timeline. History retains search, filters, date navigation, and export.
 
-Food starts with a name and Manual/Search/Barcode choices. Portion/calories, portion evidence/favorites, notes/photos, and date/time are expandable. The save action stays below the scrolling form and above the keyboard. The portion-review dialog likewise keeps Confirm and Cancel outside its scrolling detail. Source-storage/export restrictions remain visible even with source attribution collapsed.
+Food starts with a name and Manual/Search/Barcode choices. Portion/calories expands directly. A single More details group contains favorites/portion evidence, notes/photos, and date/time, reducing competing controls on the initial form. The save action stays below the scrolling form and above the keyboard. The portion-review dialog likewise keeps Confirm and Cancel outside its scrolling detail. Source-storage/export restrictions remain visible even with source attribution collapsed.
 
 Meal retains Search/Barcode/Describe/manual methods, explicit item confirmation, and composition. Custom categories, favorites/recent, and library/template/recipe choices expand only when requested. Entry details put Edit up front; reuse, delete, and technical record metadata use secondary disclosures. Settings groups units/appearance and goals/reminders; the masked personal USDA key and optional collapsed gateway remain available. Export, full backup, restore validation/conflict resolution, and photo size/type protections retain their existing behavior. Closing portability returns to the screen from which it opened.
 

@@ -3,7 +3,7 @@
 UX and barcode revision requested after the owner tested 0.1.0. Release verification is recorded in [VALIDATION.md](VALIDATION.md).
 
 - Log opens with Food, Drink and Activity; less frequent entries are under More ways to log.
-- Food supports quick name-only logging. Optional portions/calories, notes/photos, timing, intensity and library controls expand when needed.
+- Food supports quick name-only logging. Portion/calories expands directly; a single More details group holds favorites, notes/photos and timing. Drink volume stays up front, while additional choices expand when needed.
 - Camera access is requested before opening the scanner. Denial keeps manual entry available with a plain explanation; the scanner stays in portrait orientation.
 - A barcode capture automatically looks up the product and opens populated product/portion review. Typed-code lookup follows the same path. Confirm updates the draft; Save creates the journal record.
 - Lookup progress prevents duplicate requests; failed and unknown codes remain available for retry or manual entry and draft recovery.
