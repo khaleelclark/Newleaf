@@ -1,6 +1,6 @@
 # Newleaf data API
 
-Package: `com.khaleel.newleaf.data`. Shared `EntryKind`, `Entry`, `AppSettings`, `Journal` match the manager contract; optional metadata fields add evidence, canonical amounts, library status, immutable recipe/ingredient snapshots, drink composition and sources.
+Package: `com.khaleel.newleaf.data`. Current contract for Newleaf 0.1.4, reviewed October 11, 2026. `EntryKind`, `Entry`, `AppSettings` and `Journal` define the shared model; optional metadata fields add evidence, canonical amounts, library status, immutable recipe/ingredient snapshots, drink composition and sources.
 
 `Entry.nutrients` always holds consumed-portion nutrition on journal records. `Nutrition.scalePortion` converts a reference basis exactly once. Reference-only FOOD/DRINK records must use `isLibrary=true`. RECIPE/TEMPLATE default to library. Do not put drink composition ingredients into the journal as additional FOOD contributors.
 
@@ -8,7 +8,7 @@ Package: `com.khaleel.newleaf.data`. Shared `EntryKind`, `Entry`, `AppSettings`,
 
 Recipe logging copies `recipeSnapshot` and `recipeVersion`; later library edits cannot recalculate history. Repeat helpers generate new IDs and links. Event timestamps use ISO instants + IANA zone + preserved local date; `EventTimes.at` edits time and recomputes date. For STEPS/NOTE `dateOnly=true`, export omits synthetic event time. `EventTimes.resolve` rejects DST gaps and requires overlap offset selection.
 
-`JournalExports.json(journal, options)`, `markdown(journal, options)`, `csvZip(journal, options, photoReader)`, and `backup(journal, photoReader)` return String/ByteArray. `ExportOptions` supports inclusive `fromDate`/`toDate`, notes, photos, library, recipes. Defaults include notes, exclude photos/library. Photos require bytes from `PhotoReader`; failed/missing attachments fail the operation rather than claim a complete archive. Outputs never include gatewayToken, usdaApiKey or drafts. JSON schema 1.0 includes named arrays, canonical entries, manifest, attachments and summaries.
+`JournalExports.json(journal, options)`, `markdown(journal, options)`, `csvZip(journal, options, photoReader)`, and `backup(journal, photoReader)` return String/ByteArray. `ExportOptions` supports inclusive `fromDate`/`toDate`, notes, photos, library, recipes. Defaults include notes, exclude photos/library. Photos require bytes from `PhotoReader`; failed/missing attachments fail the operation rather than claim a complete archive. Outputs never include gatewayToken, usdaApiKey or drafts. JSON schema 1.0 includes named arrays, canonical `records`, manifest, attachments and summaries. Known metadata limitation: manifest.app_version remains 0.1.0 and spec_version 0.1 in this APK; use the installed APK version for app identity.
 
 `JournalExports.previewRestore(bytes)` validates ZIP digests/schema/references and returns `RestorePreview(journal, attachments, isFullBackup, selectedCount, contextCount, requiredStorageBytes, warnings)`. Commit with repository `restoreArchive(preview, replace, resolutions)`; replace writes a recovery backup before transaction. `repository.restoreConflicts(preview.journal)` reports current conflicts. Merge conflicts need explicit KEEP_EXISTING / USE_INCOMING decisions. Unsupported schemas fail before mutation. UI must show counts/conflicts and choose merge/replace. Photo paths are rewritten into private restored storage, not trusted archive host paths.
 
@@ -22,7 +22,7 @@ JSON, Markdown, CSV/settings, full backups and recovery backups omit both device
 
 Domain: `Units` converts mass/volume/body weight/distance without rounding; ambiguous `oz` is mass, never fluid volume. `Nutrition.aggregate` reports sum/count/unknown/estimated/completeness per nutrient; `partialContributors` retains incomplete recipe/composition coverage alongside known sums. `NutrientEvidence.coverageKnown/coverageTotal` records ingredient coverage; partial missingness does not by itself set estimated status, while genuinely estimated ingredients propagate that status. `Summaries.day`, `range`, `weightTrend` preserve missing vs zero and exclude library/meal totals. Water counts `countsAsWater`, not name heuristics. `Recipes.create`, `log`, `repeatMeal` preserve snapshots.
 
-Dependencies owned by app manager: Room runtime + ktx/compiler, Gson 2.11.0, kotlinx.coroutines; JVM tests JUnit 4, instrumentation AndroidX test runner/core/Room testing. All write methods may throw validation/conflict/storage errors; UI should keep the draft and show failure.
+Dependencies configured in app/build.gradle.kts: Room runtime + ktx/compiler, Gson 2.11.0, kotlinx.coroutines; JVM tests JUnit 4, instrumentation AndroidX test runner/core/Room testing. All write methods may throw validation/conflict/storage errors; UI should keep the draft and show failure.
 
 ## Verification and samples
 
@@ -30,7 +30,7 @@ Dependencies owned by app manager: Room runtime + ktx/compiler, Gson 2.11.0, kot
 
 Fictional exports are in `app/src/test/resources/data/samples/`: journal.json, journal.md, journal-csv.zip, journal-backup.zip, one-day-context.json and README.md. Regenerate with the isolated runner's `--samples app/src/test/resources/data/samples` option; these fixtures never open the journal database.
 
-Room schema v1 is exported through the manager's KSP configuration. No destructive migration fallback is enabled. Future schema changes must add explicit migrations and migration tests. Byte-returning export APIs deliberately fail if the bounded archive exceeds 256 MiB expanded or an individual attachment exceeds 64 MiB; archives are generated in memory. The current corpus verifies small journals, not the planned one-year device performance target.
+Room schema v1 is exported through the app KSP configuration. No destructive migration fallback is enabled. Future schema changes must add explicit migrations and migration tests. Byte-returning export APIs deliberately fail if the bounded archive exceeds 256 MiB expanded or an individual attachment exceeds 64 MiB; archives are generated in memory. The original one-year S25 Ultra startup/save performance targets remain unmeasured on the physical phone; historical host/emulator data checks do not certify those targets.
 
 ## Process-wide Room ownership and OFF subsets
 
@@ -40,7 +40,7 @@ When selected records or nested snapshots contain Open Food Facts sources, JSON 
 
 `Nutrition.composeDrink` retains the uncombined base nutrient map and evidence in `drink_base_nutrients` and `drink_base_evidence` metadata. The OFF subset uses only those base keys, values, provider codes and statuses for composed drinks; it never substitutes the combined totals or composition evidence. Legacy composed snapshots without saved base evidence retain their base values without inventing provider codes. Editors must preserve the metadata returned by `composeDrink`, restore base evidence before recomposition, and update `nutrition_scale` when changing the consumed portion.
 
-Subset notice links [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) for database rights and [DbCL 1.0](https://opendatacommons.org/licenses/dbcl/1-0/) for contents, with attribution to Open Food Facts contributors. This scoped notice does not assign these licenses to private journal content or certify unrestricted reuse. Source licensing follows the manager's published-terms decision and [OFF licensing guidance](https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side/). Other restricted sources still fail save/export visibly; no silent source exclusion.
+Subset notice links [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) for database rights and [DbCL 1.0](https://opendatacommons.org/licenses/dbcl/1-0/) for contents, with attribution to Open Food Facts contributors. This scoped notice does not assign these licenses to private journal content or certify unrestricted reuse. Source licensing follows the documented published-terms policy and [OFF licensing guidance](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/). Other restricted sources still fail save/export visibly; no silent source exclusion.
 
 ## Atomic editor save
 

@@ -1,12 +1,12 @@
 # Nutrition integration specification
 
-Updated October 1, 2026 for the owner's free-only requirement. USDA and Open Food Facts supply nutrition; Describe meal provides USDA-assisted review. The parent's two live USDA verification calls and one Open Food Facts production response are recorded in release validation. No paid account, commercial call, or hosted deployment was created.
+Current integration for Newleaf 0.1.4; reviewed October 11, 2026. USDA and Open Food Facts supply nutrition. Food list (Describe) provides bounded USDA-assisted review. Historical authorized host reads and current recorded mapper/portion evidence are in [release validation](../releases/VALIDATION.md). No hosted gateway or paid fallback is part of the release.
 
 ## Sources and access
 
 **USDA FoodData Central** supplies general/branded food search and detail. Register for a free data.gov key. USDA data are public domain/CC0; the documented default allowance is 1,000 requests/hour/IP. Coverage, portion definitions and nutrient completeness vary. Preserve fdcId, preparation, declared nutrient basis, retrieval time and missingness. [Official API guide](https://fdc.nal.usda.gov/api-guide/)
 
-**Open Food Facts** supplies public packaged-food/drink barcode lookup without a user account or key. Requests identify Newleaf with a custom User-Agent. Data are community contributed and may be missing or incomplete. Database, content and image licensing differ; attribution and an independently extractable licensed nutrition subset accompany exports. No diary information is publicly contributed. [Official API documentation](https://openfoodfacts.github.io/openfoodfacts-server/api/)
+**Open Food Facts** supplies public packaged-food/drink barcode lookup without a user account or key. Requests identify Newleaf with a custom User-Agent. Data are community contributed and may be missing or incomplete. Database, content and image licensing differ; attribution and an independently extractable licensed nutrition subset accompany exports. No diary information is publicly contributed. [Official API documentation](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/)
 
 **Nutritionix is disabled.** Its developer portal announces the withdrawal of public free access; limited trials do not meet the owner's free-only requirement. Legacy credentials must not activate a commercial endpoint. No commercial parser is required. [Official developer announcement](https://developer.nutritionix.com/)
 
@@ -20,6 +20,8 @@ Updated October 1, 2026 for the owner's free-only requirement. USDA and Open Foo
 | Repeat or recipe | Local immutable reviewed snapshots | Works offline |
 
 Describe accepts at most eight food/drink fragments. It is deterministic assisted search, not unrestricted language understanding or AI analysis. Original text, supplied quantities and inferred amounts remain distinguishable. All matches require review; editing a suggestion never silently saves it. USDA keyword similarity is not proof of identity. A missing serving conversion leaves nutrition unknown rather than inventing a gram or fluid-ounce density.
+
+Home Scan requires category and one Add to journal; Find a food → Barcode inside an editor uses Confirm item, then Save. Supplied nutrition stays visible in review/drafts/details. Explicit normalized package g/mL defines a whole package; half-package and 50-percent inputs scale once. Label-serving size stays separate, and missing package size/density stays unknown.
 
 Food detail retains description-derived portion hints while obtaining the selected source's nutrient basis. Measured quantities scale only against compatible declared units/weights. A consumed serving must not be multiplied again as though its values were per 100 g. Unsupported or partial fields stay explicitly unknown. Local overrides preserve attribution and are never uploaded; historical journal entries do not refresh themselves from source data.
 

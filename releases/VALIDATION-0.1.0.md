@@ -1,5 +1,7 @@
 # Newleaf 0.1.0 — validation record
 
+Historical release record. For current behavior/evidence, see [VALIDATION.md](VALIDATION.md) and [INSTALL.md](INSTALL.md).
+
 October 1, 2026. This record distinguishes local implementation, repeatable fixtures, Android runtime evidence, and remaining external/device acceptance. No physical Galaxy S25 Ultra was connected.
 
 ## Environment and commands

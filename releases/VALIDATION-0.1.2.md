@@ -1,5 +1,7 @@
 # Newleaf 0.1.2 — validation record
 
+Historical release record. For current behavior/evidence, see [VALIDATION.md](VALIDATION.md) and [INSTALL.md](INSTALL.md).
+
 October 2, 2026. The owner tested 0.1.1 and asked for a much simpler, human-readable interface and a main-screen barcode icon that creates a reviewed entry with a chosen category. Earlier results are retained in [VALIDATION-0.1.1.md](VALIDATION-0.1.1.md) and [VALIDATION-0.1.0.md](VALIDATION-0.1.0.md).
 
 ## Implemented behavior

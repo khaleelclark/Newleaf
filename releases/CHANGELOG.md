@@ -1,5 +1,7 @@
 # Newleaf 0.1.4
 
+Current release. See [validation](VALIDATION.md) and [install/use](INSTALL.md); lower sections describe their named historical versions. Documentation refreshed October 11, 2026 without changing the APK.
+
 - Movement now includes Log weight. Enter a body weight and save; no measurement name is required.
 - Scanned nutrition appears automatically in review, confirmed drafts and entry details. Known zero values remain visible; missing values remain unknown. Details keeps editing/source controls secondary.
 - With a reported package size, review starts at one whole package. Enter 0.5 package or choose Percent of package and enter 50 to log half. Package size and label-serving size are separate; switching compatible units preserves the consumed amount.
@@ -55,7 +57,7 @@ First Android implementation, October 1, 2026. Final verification status is reco
 - Optional local check-in reminders, system photo/file pickers, platform-protected personal USDA key and device access token, explicit platform backup exclusions.
 - Optional authenticated USDA gateway with shared deployment credentials kept on the server, persistent request ceilings, and safe provider errors.
 
-## Remaining external and device checks
+## Historical 0.1.0 external checks and limits
 
 USDA needs a free data.gov key entered in Settings; no server is required. Open Food Facts lookup needs no personal account/key. Nutritionix is disabled after the owner's free-only clarification. No paid subscription, account registration, deployment or commercial call was made.
 

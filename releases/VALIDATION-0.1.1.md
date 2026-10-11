@@ -1,5 +1,7 @@
 # Newleaf 0.1.1 — validation record
 
+Historical release record. For current behavior/evidence, see [VALIDATION.md](VALIDATION.md) and [INSTALL.md](INSTALL.md).
+
 October 2, 2026 (work began October 1). This release responds to the owner's installed-app feedback about crowded controls, poor logging flow and barcode results that did not populate visibly. The user's particular barcode and provider response were not supplied; no claim attributes that exact failure to one cause. The previous 0.1.0 record is retained in [VALIDATION-0.1.0.md](VALIDATION-0.1.0.md).
 
 ## Changes and source review

@@ -1,6 +1,6 @@
 # Experience and visual specification
 
-Simple-inspired tracker revision — October 2, 2026. Current verification is recorded in [release validation](../releases/VALIDATION.md).
+Implemented experience for Newleaf 0.1.4; reviewed October 11, 2026. Current verification is recorded in [release validation](../releases/VALIDATION.md).
 
 ## 1. Interaction principles
 
@@ -24,6 +24,7 @@ flowchart TD
     Today --> LogFood[Log food]
     Today --> LogDrink[Log drink]
     Today --> LogActivity[Log activity]
+    Today --> LogWeight[Log weight]
     Today --> Scan
     LogFood --> Description[What did you eat?]
     Description --> SaveFood[Save food]
@@ -39,7 +40,7 @@ flowchart TD
 
 One short welcome introduces the journal and export capability. Let the user choose units and appearance, then go directly to Today. Weight, goals, account creation, and notifications are not required to begin.
 
-Ask camera permission before opening the scanner when Scan is selected. Denial shows a plain in-editor explanation and leaves manual barcode input and search available, instead of opening a scanner camera-error dialog. The scanner stays in portrait orientation. Explain online nutrition lookup when first used. Notification permission is requested only if the user turns on reminders. An optional microphone is a later enhancement; typing a meal description is part of the first release.
+Ask camera permission before opening the scanner when Scan is selected. Denial shows a plain in-editor explanation and leaves manual barcode input and search available, instead of opening a scanner camera-error dialog. The scanner stays in portrait orientation. Lookup captions and source settings explain online nutrition access; no separate first-use consent dialog is implemented. Notification permission is requested only if the user turns on reminders. An optional microphone is a later enhancement; typing a meal description is part of the first release.
 
 ## 4. Today
 
@@ -71,7 +72,7 @@ Saved entries, with their time and amount
 
 The week strip has explicit full-date accessibility labels and selected state. Calendar reaches any date. Selecting a date moves to Today or History and all direct tracker entry forms use that date; Scan deliberately returns to Today. Tracker summaries preserve unknowns and partial calorie coverage. Water counts only explicitly classified water. No goal ring appears unless a goal is set.
 
-Timeline cards show time, name, a compact portion/summary, and a small type indicator. Source and detailed nutrition live behind a tap. A meal can expand into its food and drink components; its calorie summary includes linked drinks once. Standalone drink rows remain visible, with a subtle meal association when applicable.
+Timeline cards show time, name and a compact portion/summary. Tapping opens all populated nutrition automatically; source metadata and editing controls remain secondary. A meal can expand into its food and drink components; its calorie summary includes linked drinks once. Standalone drink rows remain visible, with a subtle meal association when applicable.
 
 ## 5. Food and meal flow
 
@@ -85,7 +86,7 @@ Meal categories start blank with Breakfast/Lunch/Dinner/Snack/Other; custom exis
 
 ### Scan
 
-Open a camera view with a simple scan boundary, flashlight, manual-code option, and Back. Pause recognition after one code is captured to prevent repeated requests. A captured code immediately starts free Open Food Facts lookup and opens the populated product/portion review on a match, without a separate result-card tap. Typed codes use “Find product” and then follow the same review path. The review shows product name, brand, reported package/serving sizes, scaled calories and all populated nutrition. It labels a populated starting amount as a product-label reference, not detected consumption. Editable nutrition, custom units, amount evidence and source details share one Details group. Food/Drink classification uses a visible Log as dropdown. The consumed amount must be reviewed. A missing provider portion stays blank rather than defaulting to one serving; absent nutrition remains unknown. Inside an ordinary editor, “Confirm item” updates the local draft and the editor Save persists it separately. For the main-screen quick scan, the same dialog uses “Log scanned item” and one “Add to journal” action; its callback carries the reviewed category, classification, quantity and nutrition to the parent persistence flow. Busy state blocks duplicate Add, Cancel and dismiss; save errors remain visible for retry. Canceling review leaves the journal unchanged.
+Open the portrait barcode camera view; Back returns to the retained barcode/manual-entry controls. Pause recognition after one code is captured to prevent repeated requests. A captured code immediately starts free Open Food Facts lookup and opens the populated product/portion review on a match, without a separate result-card tap. Typed codes use “Find product” and then follow the same review path. The review shows product name, brand, reported package/serving sizes, scaled calories and all populated nutrition. It labels a populated starting amount as a product-label reference, not detected consumption. Editable nutrition, custom units, amount evidence and source details share one Details group. Food/Drink classification uses a visible Log as dropdown. The consumed amount must be reviewed. A missing provider portion stays blank rather than defaulting to one serving; absent nutrition remains unknown. Inside an ordinary editor, “Confirm item” updates the local draft and the editor Save persists it separately. For the main-screen quick scan, the same dialog uses “Log scanned item” and one “Add to journal” action; its callback carries the reviewed category, classification, quantity and nutrition to the owning persistence flow. Busy state blocks duplicate Add, Cancel and dismiss; save errors remain visible for retry. Canceling review leaves the journal unchanged.
 
 Lookup progress and failure/not-found feedback appear at the top of the barcode controls. Progress disables duplicate requests and journal save. Unexpected failures use fixed wording; only sanitized NutritionException messages are displayed. Cancellation is checked again after lookup so abandoned results cannot reopen review. Switching Search/Describe methods cancels the preceding request and clears results; request identity checks stop older responses from replacing current results. Failure or no match keeps the code in the locally recoverable draft and visible and offers “Try barcode again”, manual product entry with the barcode retained, or a switch to name search. Camera cancellation leaves the current draft untouched; manual barcode entry remains available when camera access is declined. The fake capture and lookup hooks are used only by offline UI tests; production uses Android scanning and NutritionClient.barcode.
 
@@ -109,7 +110,7 @@ The single quick-water shortcut saves 16 US fl oz (473.2 mL displayed in metric)
 
 ## 7. Feelings, activity, and weight
 
-Meal detail offers “How did you feel?” with tag chips and optional ratings. Time defaults to now; “Observed earlier” changes it. If there are multiple check-ins, show their elapsed times and let the user edit each one.
+Meal detail offers “How did you feel?” with tag chips and optional ratings. Time defaults to now; More details → Observation time changes the observed date/time. If there are multiple check-ins, show their elapsed times and let the user edit each one.
 
 Activity asks “What did you do?” with one type dropdown, then optional distance/duration; Other permits a custom activity name. Intensity and notes/photos stay collapsed until requested. Steps has a separate daily-total sheet showing the existing total before replacement. Weight opens a decimal keypad with the preferred lb/kg unit and an editable timestamp. Neither weight nor activity requires notes.
 
@@ -121,11 +122,11 @@ History offers date navigation, search, and type filters without a complicated c
 
 Trends use simple line/bar charts with range selectors, readable units, counts, and visible missing-data gaps. Chart details explain known totals, averaging, and coverage in ordinary language. Always provide an accessible text/table equivalent.
 
-Export flow: select date range, select format, select notes/attachments/library options, review counts and any source restrictions, then Save or Share using Android's system controls. Cancel returns without claiming success. Backup and restore are separate labeled actions so users understand which files can fully restore the journal.
+Export flow: select date range, format and notes/attachments/library options, then Save export or Share using Android through the system controls. The form shows the total journal count rather than a selected-range/size preview; incompatible source restrictions fail visibly during preparation. Selecting photos produces a ZIP with structured data, spreadsheet views, report and attachments. Restore separately shows validated counts/storage needs before commit. Cancel returns without claiming success. Backup and restore are separate labeled actions so users understand which files can fully restore the journal.
 
-## 9. Visual direction
+## 9. Implemented visual system
 
-Proposed palette:
+The palette is pinned in ui/Design.kt:
 
 | Role | Light | Dark |
 | --- | --- | --- |
@@ -135,14 +136,14 @@ Proposed palette:
 | Accent | forest `#356449` | soft leaf `#9CCCAF` |
 | Secondary accent | muted clay | muted clay, adjusted for contrast |
 
-Use a restrained leaf motif, simple outline icons, low elevation, soft separators, and rounded surfaces. Keep headings around 24–30 sp, body around 16 sp, and supporting labels around 14 sp, subject to font scaling. Choose a licensed readable typeface during visual review. Proposed spacing uses 4/8/12/16/24/32 dp, with 16–24 dp page margins and 16–20 dp card radii.
+Use a restrained leaf motif, simple outline icons, low elevation, soft separators, and rounded surfaces. Keep headings around 24–30 sp, body around 16 sp, and supporting labels around 14 sp, subject to font scaling. The app uses platform serif headings and default body fonts, with no bundled third-party font. Panels use 18 dp padding and 22 dp radii; actions/fields use 14 dp radii. Screen padding and spacing are set per layout in source.
 
-This is a custom component system; avoid default Material color schemes, prominent floating circles, and wallpaper-driven colors. Android permission dialogs, pickers, and share sheets remain familiar platform controls. Compose is a proposed implementation tool, not a requirement to adopt Material visuals.
+This is a custom component system; avoid default Material color schemes, prominent floating circles, and wallpaper-driven colors. Android permission dialogs, pickers, and share sheets remain familiar platform controls. Compose is the implemented UI toolkit with Newleaf colors, typography and custom primary controls; some fields/sheets use Material3 primitives.
 
 ## 10. Accessibility and quality targets
 
-- At least 48 dp touch targets and readable contrast; validate palette combinations before implementation.
-- Support TalkBack names, logical focus, large text, dark mode, and reduced motion preferences.
+- Primary Action/Choice controls use at least 48 dp dimensions. Full contrast/focus acceptance still needs review on the target phone.
+- Accessible labels/selected state, scrollable large-text layouts and light/dark themes are implemented. TalkBack acceptance and a reduced-motion preference are not certified; no dedicated motion setting is implemented.
 - Never communicate data status with color alone; pair Estimated/Unknown with text.
 - Keep primary actions visible above the keyboard and respect gesture/status-bar insets.
 - Test on the S25 Ultra at the owner's font/display settings, plus a smaller emulator layout.
@@ -152,7 +153,7 @@ This is a custom component system; avoid default Material color schemes, promine
 
 The 0.1.3 revision follows Simple's documented direct food logging, drink selection and tracker-local movement actions. References: [food logging](https://help.simple.life/en/articles/9887898-how-to-log-and-edit-food), [drinks](https://help.simple.life/en/articles/9887906-how-to-log-and-edit-drinks), [tracker overview](https://help.simple.life/en/articles/9887852-simple-life-overview-of-main-features). Newleaf retains its own visual identity, local storage, unknown nutrition and export/privacy contracts. This revision does not add fasting, food grading or cloud analysis.
 
-The shared `PortionDialog` accepts optional `quickLog=false`, `busy=false`, and `saveError=null` arguments. quickLog uses a required Category dropdown with “Choose a category” placeholder and Add to journal disabled until an explicit selection, with category/type in the returned Entry; nested meal editors retain Confirm item. Busy and an immediate local submission guard prevent repeated adds/dismissal. Unknown provider amounts stay blank and unsupported nutrition stays null; populated amounts are labeled as product-label references. The parent owns main-screen scan persistence and save retry.
+The shared `PortionDialog` accepts optional `quickLog=false`, `busy=false`, and `saveError=null` arguments. quickLog uses a required Category dropdown with “Choose a category” placeholder and Add to journal disabled until an explicit selection, with category/type in the returned Entry; nested meal editors retain Confirm item. Busy and an immediate local submission guard prevent repeated adds/dismissal. Unknown provider amounts stay blank and unsupported nutrition stays null; populated amounts are labeled as product-label references. NewleafApp owns main-screen scan persistence and save retry.
 
 Focused offline regression sources:
 

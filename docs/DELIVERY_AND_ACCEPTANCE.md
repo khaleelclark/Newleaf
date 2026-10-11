@@ -1,51 +1,31 @@
-# Implementation proposal, acceptance, and eventual delivery
+# Architecture, acceptance and delivery
 
-Version 0.1 — implementation acceptance contract, updated October 1 for the owner's free-only requirement. Development is authorized; public deployment and paid services are outside this release.
+Current implementation: Newleaf 0.1.4. Documentation reviewed October 11, 2026. APK distribution is personal; public app-store delivery, paid services and a hosted gateway deployment are outside the current release.
 
-## 1. Proposed architecture
+## Architecture
 
-| Component | Proposal and purpose |
+| Component | Implemented behavior |
 | --- | --- |
-| Android UI | Kotlin with Jetpack Compose and custom Newleaf components |
-| Journal | Room/SQLite local relational storage with transactional writes and versioned migrations |
-| Preferences | Local settings store for units, appearance, reminders, and goals |
-| Nutrition | Free USDA search/details and assisted descriptions; Open Food Facts barcode lookup |
-| Gateway | Optional authenticated USDA service; personal free key can instead be protected on the phone |
-| Photos | Private app storage; explicit attachment export; Android picker/camera integration |
-| Export | Local generators for structured JSON, CSV ZIP, Markdown, full backup |
-| Reminders | Optional local scheduling, permission requested when enabled |
+| UI | Kotlin/Compose, custom Newleaf palette/components, Today/History/Trends and More chooser |
+| Journal | Room/SQLite schema 1, unified Entry payloads with indexed fields, process-wide storage ownership and transactional edits |
+| Settings/drafts | Local metadata and durable drafts; USDA key/device token use independent Keystore-backed encrypted slots |
+| Nutrition | Explicit USDA search/details and bounded Food list matching; direct keyless Open Food Facts barcode lookup |
+| Gateway | Optional Python standard-library USDA service; authenticated HTTPS proxy needed for phone access |
+| Photos | Private app files, system picker/camera, explicit original-byte export |
+| Portability | Schema 1.0 JSON, 18-table CSV ZIP, Markdown, full attachment backup, validated merge/replace restore |
+| Reminders | Optional notification permission and Android inexact scheduling |
 
-Compose supports custom design systems, so using it does not require adopting Material visuals. [Android design-system documentation](https://developer.android.com/develop/ui/compose/designsystems)
+MinSdk29, compileSdk36 and targetSdk36 are pinned in app/build.gradle.kts. [Build](../BUILD.md) records toolchain versions and commands. Room is not a separately encrypted database. Private app storage and device protection are the journal baseline; credentials have additional Keystore protection.
 
-Android documents local databases/private app storage and the system file-picker approach for user-selected documents. Room is the proposed persistence tool; it does not itself guarantee application-level encryption. [Android storage documentation](https://developer.android.com/training/data-storage/)
+Only explicit Save/Add commits a draft. Home Scan returns to today and requires a category before Add; nested Confirm item enriches the current draft before Save. Transactions commit before state publication. Cancel and stale lookup responses do not create records. Recipe/portion/source snapshots are immutable unless the user explicitly edits the entry.
 
-Final dependency versions and Android SDK levels are selected and verified during implementation. Proposed minimum is Android 10/API 29; the target SDK must fit the current supported toolchain and the owner's actual OS. Delivery testing must cover the actual S25 Ultra installation, not just an emulator. Do not assume its factory Android version remains current.
+## Privacy and recovery
 
-The journal is the authoritative local state. Online results enrich a draft; only an explicit save creates journal records. Save operations use transactions and stable draft IDs. User data survives app restart and an in-place signed update. No prototype JSON store substitutes for the eventual transactional journal.
+No analytics, advertisements, automatic AI upload, diary cloud sync or health-account integration. CAMERA is requested for scanning/capture; POST_NOTIFICATIONS is optional for reminders; INTERNET supports explicit lookup. Pickers avoid broad storage access. Platform backup is disabled in the manifest/extraction rules; full user-directed backups exclude credentials and transient drafts. Uninstall/data-clear deletes local data. Replace restore writes a local recovery backup before its transaction; merge conflicts require an explicit resolution. See [installation/recovery](../releases/INSTALL.md) and [data contract](DATA_AND_EXPORTS.md).
 
-## 2. Privacy, backup, and permissions
+## Acceptance scenarios
 
-No advertisements, analytics SDK, automatic AI upload, or cloud diary sync in the first release. Sensitive content is excluded from application and gateway logs. Food-query transmission is explained at first online use. The owner's personal free USDA key and device gateway token use Keystore-protected storage and are excluded from backups/exports; shared deployment credentials stay server-side. Never embed a key in the APK or repository.
-
-Private local storage is the baseline, with Android device protection. Optional biometric app lock can be evaluated later; do not promise encryption at the database layer without an explicit implementation and recovery plan. Backups/exports leave the app only through the user's selected destination. Explain that a normal export is readable wherever it is saved.
-
-Use least-required permissions: camera when scanning/capturing; notifications when reminders are enabled. User-selected photo/document access uses system pickers. No location, activity sensor, broad storage, or Samsung Health access for manual logging.
-
-Configure platform backup policy explicitly before release; proposed default excludes the journal/credentials from automatic platform cloud backup because this release supplies an explicit backup flow. This is an implementation requirement, not a claim that Android would automatically do so. Document uninstall/data-clear behavior and suggest exporting a backup first.
-
-## 3. Development sequence after authorization
-
-1. **Visual review and access decisions:** review Today and logging layouts; verify free provider access/export rights, personal-key protection, package/signing setup, and actual phone OS.
-2. **Local journal:** navigation, meals/food/drinks, feelings, activity/steps, weight, edits, drafts, totals, units.
-3. **Convenience and sources:** favorites, saved meals, recipes, free USDA/OFF adapters, optional gateway, barcode, assisted description review, offline behavior.
-4. **Portability and trends:** export formats, complete backup/restore, attachments, history filters, charts with coverage.
-5. **Device validation and handoff:** S25 Ultra usability, accessibility, update/restore tests, signed release APK and instructions.
-
-Milestones describe implementation order, not reduced release scope. No hard completion dates or cost estimate are set by this specification. If provider access is delayed, report which capability remains incomplete rather than declaring the whole project done.
-
-## 4. Acceptance scenarios
-
-Each row defines observable behavior to verify during development. These are planned checks, not tests already run.
+These IDs retain the original contract for maintenance. They describe expected results, not 31 independently executed device tests. Automated coverage is recorded in [validation](../releases/VALIDATION.md); physical phone accessibility/network/camera and performance are separate open checks.
 
 | ID | Scenario | Required result |
 | --- | --- | --- |
@@ -55,8 +35,8 @@ Each row defines observable behavior to verify during development. These are pla
 | A04 | Scan a supported product | Review correct product/source/portion before saving; one lookup per captured code |
 | A05 | Deny camera or scan missing barcode | Manual barcode/search/custom entry stays available; draft preserved |
 | A06 | Describe a mixed meal with a coffee | Review parsed foods and drink; edit amounts; no double counting |
-| A07 | Parser guesses an amount | Estimated remains visible after user confirms the food identity |
-| A08 | Parser times out, quota expires, or account lacks access | Clear scoped error; local logging continues; no automatic retries or paid fallback |
+| A07 | Description supplies a provisional amount | Estimated remains visible after user confirms the food identity |
+| A08 | Parser times out, quota expires, or authentication fails | Clear scoped error; local logging continues; no automatic retries or paid fallback |
 | A09 | Log quick water then Undo | Exactly one entry removed; volume/nutrition return to prior values |
 | A10 | Log coffee with milk/sugar | Composition contributes to drink total once; water total remains separate |
 | A11 | Repeat yesterday's meal | New IDs/time, same reviewed snapshot; editing copy leaves original unchanged |
@@ -81,24 +61,24 @@ Each row defines observable behavior to verify during development. These are pla
 | A30 | Inspect release artifact/logs/export | No provider secret, device token, or sensitive diagnostic payload leaked |
 | A31 | Exercise every selected provider with approved access | Actual free search/barcode/assisted matching verified, mappings and quotas documented |
 
-Proposed performance targets: local entry save feedback within 300 ms and interactive cold start within 2 seconds on the target phone, validated using a documented dataset of at least one year of representative entries. Network work never blocks local journal access. Optimize only against measured behavior.
 
-## 5. Eventual delivery checklist
+Additional 0.1.4 regressions cover direct weight logging, visible populated nutrition, half-package/percentage equivalence, package-versus-label-serving size, unit conversion without guessed density, and save/reload/export/restore of portion definitions.
 
-The development phase must supply and verify these named deliverables; none are required to exist during this specification-only phase:
+## Release evidence and open checks
 
-- `releases/Newleaf-<version>.apk`: signed release APK installable on the owner's S25 Ultra.
-- `releases/INSTALL.md`: install, permissions, personal USDA key/optional gateway setup, update, backup/restore, and uninstall/data-clear instructions.
-- `releases/CHANGELOG.md`: version, included features, known limitations, and resolved provider choices.
-- `releases/CHECKSUMS.txt`: artifact integrity values.
-- Application and gateway source, build instructions, dependency/license notices, and a secrets-free configuration example.
-- `releases/VALIDATION.md`: acceptance results, actual device/OS, provider access results, and export/restore evidence.
-- Sample fictional-data exports in the three formats plus an attachment backup example; never ship the owner's real journal as samples.
+The recorded 0.1.4 release passed 126 JVM tests and 38 mapped signed-release emulator tests on Android16/API36 x86_64. A font-scale1.6 half-bottle repeat is separate evidence, not an extra unique test. Lint recorded zero errors and 22 warnings. Historical theme/provider/gateway checks are not silently counted as new runs. Exact results and limits are in release validation.
 
-The owner must be able to install updates with the same signing identity. Agree signing-key custody and secure recovery before the first release. Never include private signing keys in ordinary Project files or chat attachments.
+Physical S25 Ultra installation prompts, camera/catalog/network behavior, Samsung keyboard, TalkBack and target-phone performance remain to be checked. The original targets of entry-save feedback within 300ms and cold start within 2s with at least one year of representative data have not been certified on the phone. OFF's owner contact User-Agent override and optional gateway HTTPS/proxy operation remain distribution/deployment tasks.
 
-An APK is the delivery format; a Play Store release is outside the current scope. No paid service is part of Newleaf. Public gateway deployment remains a separate optional action.
+## Handoff checklist
 
-## 6. Specification completeness checklist
+Before publishing a release, verify each actual file, then run scripts/package.py:
 
-At this phase the required outputs are this folder, README, and five linked specification documents. Check each file exists, is readable, and has valid internal links. Confirm source statements have official references, unresolved assumptions are labeled, and no application/build files were created. This phase is complete when those documents are present and reviewable; it is not evidence that the app exists.
+- releases/Newleaf-<version>.apk, signed with the established key and increased version code for an app update.
+- releases/INSTALL.md, CHANGELOG.md and VALIDATION.md matching that APK.
+- releases/SIGNATURE.txt, MAPPING.txt and CHECKSUMS.txt; retain the exact minification map for that APK.
+- Newleaf-<version>-source.zip containing application/gateway source, build instructions, docs, schemas/tests and secrets-free gateway/.env.example.
+- releases/samples/example-journal.json, example-report.md, example-spreadsheets.zip and example-backup.zip plus sample README; fictional data only.
+- Named documents in the README index, valid local links, and explicit boundaries between release evidence and acceptance targets.
+
+Never publish signing keys/passwords, device/provider credentials, local SDK paths or real journal data. Back up the established signing identity privately before relying on future updates. Run release/unit/lint checks and mapped instrumentation after code changes; documentation-only maintenance validates links, file contents, packaging and checksums without implying a new APK test run. See [documentation procedure](DOCUMENTATION_STATUS.md).

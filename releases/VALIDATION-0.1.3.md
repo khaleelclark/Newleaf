@@ -1,5 +1,7 @@
 # Newleaf 0.1.3 — validation record
 
+Historical release record. For current behavior/evidence, see [VALIDATION.md](VALIDATION.md) and [INSTALL.md](INSTALL.md).
+
 October 2, 2026. The owner requested a better flow inspired by Simple after testing 0.1.2. Prior release evidence is preserved in [VALIDATION-0.1.2.md](VALIDATION-0.1.2.md), [VALIDATION-0.1.1.md](VALIDATION-0.1.1.md) and [VALIDATION-0.1.0.md](VALIDATION-0.1.0.md).
 
 ## Reference and implemented behavior

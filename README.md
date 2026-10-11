@@ -2,56 +2,42 @@
 
 **A fresh start, one day at a time.**
 
-Newleaf is a personal Android journal for meals, drinks, activity, body weight, and how you feel. It pairs fast logging with detailed, portable data for later analysis.
+Newleaf is a personal Android journal for food, drinks, movement, body weight and feelings, with local storage and complete exports for later analysis.
 
-## Project status
+## Current release
 
-Newleaf 0.1.4 is a signed Android APK with a source archive, installation instructions and fictional export examples. Daily Food, Drinks and Movement trackers open forms directly, with a visible barcode Scan action. Food starts with a short description; numeric details are optional. Movement includes a direct weight shortcut. Scanning shows supplied nutrition and supports fractions/percentages of an explicitly sized package. [Release validation](releases/VALIDATION.md) records current checks and physical-phone limits.
+**0.1.4 · version code 6 · package `com.khaleel.newleaf`**. Android 10/API 29 or newer; compiled and targeted against API 36. The primary device is the Samsung Galaxy S25 Ultra. Distribution is a signed APK through Project files; there is no Play Store listing.
 
-Project location: `/home/phoenix/khaleel/Newleaf`.
+Today opens food, drink, activity, steps and weight forms directly. Scan opens packaged-product review with a required category, visible populated nutrition and one Add to journal action. Reported whole-package measurements support fractions and percentages; missing nutrition stays unknown. Manual logging and exports work offline.
 
-Primary device: Samsung Galaxy S25 Ultra. Handoff files are in `releases/`; see [installation](releases/INSTALL.md) and [build instructions](BUILD.md).
+## Documentation
 
-## Read the specification
-
-| Document | Contents |
+| Start here | Contents |
 | --- | --- |
-| [Product specification](docs/PRODUCT_SPEC.md) | Scope, features, daily behavior, and defaults |
-| [Experience and design](docs/EXPERIENCE.md) | Navigation, screen layouts, logging flows, accessibility, visual direction |
-| [Data and exports](docs/DATA_AND_EXPORTS.md) | Records, units, nutrition calculations, export formats, backup and restore |
-| [Nutrition integrations](docs/NUTRITION_INTEGRATIONS.md) | Free USDA/OFF access, assisted descriptions, privacy, quotas, licensing |
-| [Delivery and acceptance](docs/DELIVERY_AND_ACCEPTANCE.md) | Proposed architecture, implementation sequence, acceptance scenarios, eventual handoff |
+| [Install and use](releases/INSTALL.md) | Phone installation, daily use, half-bottle logging, source setup, export and recovery |
+| [Changelog](releases/CHANGELOG.md) | Features by release |
+| [Release validation](releases/VALIDATION.md) | Recorded build/test evidence and remaining phone checks |
+| [Product behavior](docs/PRODUCT_SPEC.md) | Current scope, defaults and deferred capabilities |
+| [Experience](docs/EXPERIENCE.md) | Screens, interaction, visual system and accessibility targets |
+| [Data and exports](docs/DATA_AND_EXPORTS.md) | Implemented schema, units, calculations, file formats and restore |
+| [Nutrition sources](docs/NUTRITION_INTEGRATIONS.md) | Free USDA/OFF access, review, privacy and source policy |
+| [Architecture and acceptance](docs/DELIVERY_AND_ACCEPTANCE.md) | Components, acceptance scenarios and release checklist |
+| [Build](BUILD.md) | Toolchain, debug/release builds, signing and packaging |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | Component and nutrition notices |
+| [Documentation maintenance](docs/DOCUMENTATION_STATUS.md) | Audit scope, known limits and update procedure |
 
-The product document sets scope; the other documents define the behavior needed to deliver it. If a later revision changes scope, update the linked documents together.
+Developer contracts: [data API](app/src/main/java/com/khaleel/newleaf/data/API.md), [nutrition API](app/src/main/java/com/khaleel/newleaf/nutrition/API.md), and [optional gateway](gateway/README.md). [Fictional exports](releases/samples/README.md) are separate samples and never seed the journal.
 
-## Settled requirements
+## Nutrition and privacy
 
-- Name: Newleaf, expressing a fresh start and lifestyle change.
-- Fast meal, food, drink, and activity logging; feelings after meals; body weight and flexible portions.
-- Food search, barcode scanning, meal descriptions, saved meals, and reusable recipes.
-- Free-only nutrition: USDA FoodData Central search/details and assisted descriptions, plus Open Food Facts barcode lookup.
-- A clean custom visual identity rather than the standard Material appearance.
-- Complete exports for spreadsheets and AI analysis, with original context and data quality information.
-- Android delivery for the owner's S25 Ultra.
-- Application development authorized after completion of the specification.
+Open Food Facts barcode lookup needs no personal account or key. USDA food search and bounded Food list suggestions need a free data.gov key entered in Settings → Nutrition sources → Save preferences. The key is protected with Android Keystore and excluded from exports/backups. An authenticated HTTPS gateway is optional. Nutritionix and paid fallbacks are disabled.
 
-## Proposed defaults, open for revision
+The journal stays on the phone. Explicit online lookup sends food queries or a barcode to the relevant provider. No AI upload, analytics, diary account, cloud journal sync, automatic steps/health-account import or fasting features are included. Export destinations are chosen by the user; full backups include original local photos but exclude credentials and transient drafts. Uninstalling or clearing app data deletes local records, so save a full backup elsewhere first.
 
-- Native Android in Kotlin with a custom Compose design system and local storage.
-- Single user, no mandatory diary account, local journal by default.
-- US customary display units initially: lb, US fl oz, mi; g also available for food weighing.
-- Today, History, and Trends as primary navigation; settings and library as secondary destinations.
-- No default calorie target, weight target, reminders, fasting features, or automatic AI analysis.
-- Local meal photos are included; automatic photo-based nutrition recognition is a later option.
+## Evidence and limits
 
-## Remaining external setup
+The 0.1.4 release record reports **126 JVM tests and 38 signed-release emulator tests passed**. Those are recorded release results, not a new run during documentation maintenance. Physical S25 Ultra camera/network/keyboard/TalkBack acceptance and target-phone performance remain open. The optional gateway has separate historical test evidence and no production deployment. See the validation record for exact boundaries.
 
-Open Food Facts is free and needs no user account or key for product lookup. USDA is free with a data.gov API key; enter your personal key in Settings → Nutrition sources. Newleaf protects it locally and excludes it from exports/backups. A hosted gateway is optional, so online nutrition does not require paid hosting.
+## Repository and maintenance
 
-The owner's USDA key passed two read-only official API calls, for search and details. The key is not embedded in the APK. Final free-only emulator validation is complete; actual S25 Ultra installation/usability remains to be checked. Package identifier is `com.khaleel.newleaf`; signing-key custody is documented in the installation instructions.
-
-Nutritionix's public free tier was withdrawn, so that provider is disabled. Describe meal uses bounded, reviewed USDA matches rather than a paid natural-language service. No subscription, paid account, or public gateway deployment is part of this release.
-
-## Version control
-
-Commit focused checkpoints and push regularly to the owner's `khaleelclark` GitHub account. Use the verified GitHub identity and SSH access. Never commit provider/device credentials, local SDK configuration, signing keys/passwords, generated build caches, or real journal data. Release binaries are delivered separately from source history. Remote creation/push status is recorded in release validation.
+The owner's private repository is `khaleelclark/Newleaf`. Keep source and documentation together; distribute release binaries separately in Project files. Never commit real journal data, credentials, signing keys/passwords, local SDK configuration or build caches. Signing-key custody and recovery are described in [Build](BUILD.md).

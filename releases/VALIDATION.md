@@ -32,6 +32,10 @@ Actual screenshots in `/tmp/newleaf-portions-evidence/`: home, product review, h
 
 Physical S25 Ultra camera/network/catalog coverage, Samsung keyboard and TalkBack remain target-phone checks. This iteration visually checks the current light theme; previous theme checks are historical. Gateway's 20-test result is historical and was not rerun for this app-only revision.
 
+## Documentation maintenance — October 11, 2026
+
+The APK is unchanged. Current product/user/build/data/provider documents were reconciled against 0.1.4 source, local links checked, historical records labeled and source/documentation archives refreshed. Existing release JVM XML still reports 126 tests with zero failures/errors/skips; Android results above remain the recorded October2 evidence. No new application build, device run or provider request is claimed. Known export metadata limitation: manifest.app_version remains 0.1.0 and spec_version 0.1; see the [data contract](../docs/DATA_AND_EXPORTS.md). Phone/performance checks remain open.
+
 ## Delivery
 
 All named deliverables are verified by scripts/package.py before delivery: signed APK, INSTALL/CHANGELOG/VALIDATION, signature/checksums/mapping, app/gateway source and secrets-free configuration, build/license notices, and fictional JSON/Markdown/CSV/attachment-backup examples. Source ZIP integrity and excluded private files are checked. Application/release documentation is committed and pushed to the existing private repository; binaries are delivered through Project files.

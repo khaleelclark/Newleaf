@@ -1,5 +1,7 @@
 # Install and use Newleaf 0.1.4
 
+Documentation reviewed October 11, 2026 against the unchanged 0.1.4 APK.
+
 ## On your Galaxy S25 Ultra
 
 1. Download `Newleaf-0.1.4.apk` from the Project files to your phone.
@@ -57,6 +59,14 @@ Future APKs must have the same package and signing identity with an increased ve
 The debug/test build uses another signing identity. It is not the phone handoff. Android will reject an in-place update from that debug build to the release; export first if you installed a development build with data.
 
 Uninstalling or clearing Android app data deletes the local journal and photos. Export a full backup first. Automatic platform cloud backup is disabled; this version has explicit backup/restore instead. Exported files in other destinations are managed separately by you.
+
+## Troubleshooting
+
+- **Update will not install:** confirm you opened the signed release APK. A debug or differently signed install cannot update in place; export a full backup before considering any uninstall. Insufficient storage or Android installation policy can also block installation.
+- **Barcode finds a name but not nutrition:** that product may lack supported nutrition fields. Enter measured values from your label or keep them unknown; missing information is not zero.
+- **Package/percentage option is absent:** the provider did not report a supported normalized package size. Use measured g/mL or a known label serving instead.
+- **USDA search fails:** save your key in Settings first. Check setup shows configuration, not live authentication. An explicit search checks service access; manual logging continues offline.
+- **Large export fails:** use smaller dated batches for attachments and retain the structured journal export. A failed export is not a usable backup.
 
 ## Validation boundary
 

@@ -1,6 +1,6 @@
 # Data, calculation, and export contract
 
-Version 0.1 — conceptual schema. No database or executable schema has been created.
+Implemented data/export contract for Newleaf 0.1.4; documentation reviewed October 11, 2026. Portable schema is `1.0`; Room database schema is `1`. See [data API](../app/src/main/java/com/khaleel/newleaf/data/API.md) for exact Kotlin interfaces.
 
 ## 1. Record conventions
 
@@ -10,7 +10,7 @@ Store event instants in UTC plus the IANA time zone, local timestamp with offset
 
 Canonical numeric units: food mass g, drink volume mL, body mass kg, distance m, duration seconds, energy kcal. Retain original quantity/unit and conversion metadata. Numeric precision is retained internally; round only for display. All times use ISO 8601 in exports. A missing numeric value is null, never zero or an empty numeric string.
 
-## 2. Conceptual entities
+## 2. Record views and relationships
 
 | Entity | Core fields and relationships |
 | --- | --- |
@@ -29,6 +29,8 @@ Canonical numeric units: food mass g, drink volume mL, body mass kg, distance m,
 | RecipeVersion | recipe ID/version; ingredient snapshots; serving yield; optional final cooked mass; computed nutrient totals; notes |
 | Attachment | local ID; MIME type; filename; content digest; size; capture time; linked records |
 | SourceReference | provider; food ID/barcode; retrieval time; attribution; basis; version; override details |
+
+The table describes logical views, not separate Kotlin classes or SQL tables. `Journal.entries` contains unified `Entry` records keyed by `EntryKind`; Room stores entry payloads and indexed event fields, settings metadata and durable drafts. Favorites are flags/usual quantities, recipes/templates retain embedded snapshots, photos use paths plus exported attachment manifests, and nutrient values/evidence are separate maps. `Models.kt` and the exported Room schema define the physical shape.
 
 References may be absent when information is unknown. Commercial provider IDs are namespaced by provider; identical IDs from two services are not the same food. Raw provider payloads belong in a separate bounded cache only when retention is permitted, not in automatic AI exports.
 
@@ -49,6 +51,7 @@ Historical entries contain the nutrition actually used when saved, its source/ba
 - Label US fluid ounces explicitly in data and unit settings; an ambiguous imported “oz” is not assumed to be fluid volume.
 - Cups, tablespoons, pieces, and serving names require food-specific definitions for mass or a usable nutrient-per-unit basis. A cup of oil and a cup of rice do not have the same mass. Never substitute a water-density conversion for an arbitrary drink.
 - Per-100-g nutrition multiplied by consumed g / 100 gives consumed nutrition. Per-100-mL nutrition multiplied by consumed mL / 100 gives consumed nutrition. Per-serving values require the consumed serving count or a documented serving size.
+- Whole-package portions require a positive finite normalized g/mL provider measurement. A package fraction scales against that measurement; percentage input divides by 100 once, saves as a fractional `package` quantity and retains original input in metadata. Label serving and package remain distinct. Multipacks use the whole outer package; textual quantity labels alone do not define conversion.
 - Do not apply portion scaling twice to a parser response that already describes the consumed amount. Every provider adapter must declare its basis before normalization.
 - Recipes sum ingredient nutrition, then divide by serving yield; gram portions also require final recipe mass. A missing ingredient nutrient makes that nutrient's recipe total partial, even when other nutrients are complete.
 - Calculated totals retain the scaling/basis used. Plausibility issues prompt review; they do not silently clamp, discard, or replace the user's input.
@@ -77,9 +80,11 @@ Library and recipe options are independent. Recipe versions referenced by export
 
 ### Structured JSON
 
-Single UTF-8 file, schema_version `1.0`, with manifest, settings, meals, food_entries, drink_entries, feeling_checkins, activities, daily_steps, weight_entries, daily_context, custom_foods, favorites, saved_meals, recipe_versions, attachment_manifest, and daily_summaries. Arrays remain present when empty. Nutrients are code/value/unit/status objects; amounts preserve original and canonical units. Normal exports include current record revisions, not every edit-history version.
+Single UTF-8 file, schema_version `1.0`, with manifest, settings, canonical `records`, document `extensions`, source notices, independent OFF nutrition subset, meals, food_entries, drink_entries, feeling_checkins, activities, daily_steps, weight_entries, daily_context, custom_foods, favorites, saved_meals, recipe_versions, attachment_manifest, and daily_summaries. Arrays remain present when empty. Canonical records use `nutrients` code→number/null and `nutrientEvidence` code→unit/status/origin/basis objects; amounts preserve original and canonical units. Named arrays are views of these records, not additional contributors. Normal exports include current record revisions, not every edit-history version.
 
-Manifest fields: export ID, generation time, app/spec schema versions, selected range and date policy, display-unit preferences, included/excluded categories, context counts, per-table counts, source attribution, attachment inclusion, and any restrictions. Unknown fields from a future schema must not be silently discarded during restore.
+Manifest fields: export ID, generation time, app/spec schema versions, selected range and date policy, display-unit preferences, included/excluded categories, context counts, per-table counts, source attribution, attachment inclusion, and any restrictions. Compatible extension fields are preserved and named credentials are stripped recursively. Unsupported future schema versions are rejected.
+
+Known 0.1.4 metadata limitation: `manifest.app_version` still emits `0.1.0` and `spec_version` emits `0.1`; neither identifies the installed APK version. Use schema_version to interpret files and the release APK/build metadata for app identity. Updating this producer metadata requires an application change.
 
 ### CSV bundle
 
@@ -110,7 +115,7 @@ All applicable rows include context_only and record revision. Full column types 
 
 ### Markdown report
 
-Human-readable manifest, per-day summaries, and chronological entries. Show portions, available nutrition, drink volumes, activities, steps, weight, check-ins with elapsed time, and notes when selected. Append source attribution, units, unknown/estimated counts, logging completeness, and exclusions. Large ranges can split into dated report files with an index.
+Human-readable manifest, per-day summaries, and chronological entries. Show portions, available nutrition, drink volumes, activities, steps, weight, check-ins with elapsed time, and notes when selected. Append source attribution, units, unknown/estimated counts, logging completeness, and exclusions. Each export produces one report; choose smaller date ranges manually for large journals. Automatic report splitting/indexing is not implemented.
 
 The report carries descriptive data, not AI-generated conclusions or automatic dietary advice. It should be useful to a reader without access to Newleaf.
 
@@ -124,13 +129,13 @@ Full backup is a versioned JSON archive with every active journal/library/settin
 
 Restore previews schema version, counts, file integrity, and storage requirements before committing. Offer merge or replace with clear consequences. Merge preserves IDs, skips byte-equivalent duplicates, and requires a decision for conflicting revisions. Replace creates a recovery backup first, then atomically installs the selected data. Cancellation or invalid archives leave current data unchanged.
 
-Validate record references, attachment digests, quantities/units, timestamps, and supported schema before commit. Referenced meals/recipes must exist or be deliberately represented as missing context; never crash or silently discard related records. Derived summaries are recalculated and compared with exported values. Unsupported future schema is rejected with a clear message.
+Validate record references, attachment digests, quantities/units, timestamps, and supported schema before commit. Referenced meals/recipes must exist or be deliberately represented as missing context; never crash or silently discard related records. Derived summaries are recalculated and compared with exported values. Archives are generated in memory with a 256 MiB expanded-data limit and 64 MiB individual-member limit; large photo collections may need dated export batches. CSV cells alone are not a restore source: preserve the included journal.json and attachments. Unsupported future schema is rejected with a clear message.
 
 Database migrations and application updates preserve historical snapshots. Journal deletion clears local records and linked photos after the undo period; exported files outside the app are separately owned by the user. Clearly distinguish clearing lookup cache from deleting the journal.
 
 ## 9. Export verification examples
 
-These are acceptance fixtures for later development, not measured nutrition facts:
+These are regression/acceptance fixture expectations, not measured food facts or fresh test results. Recorded integrated evidence is in [release validation](../releases/VALIDATION.md):
 
 - A reference food containing 200 kcal per 100 g logged at 150 g exports 300 kcal and its scale basis.
 - A known 300 kcal food plus a name-only food exports known total 300 kcal, one unknown contributor, and partial coverage.
