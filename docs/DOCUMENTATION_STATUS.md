@@ -14,6 +14,10 @@ Removed proposal-only status and authorization language, reconciled direct Food/
 
 28 Markdown files were read/checked; all 70 local Markdown links/fragments resolve and code fences are balanced. The 21 distinct external Markdown references in current documents returned HTTP200 in a read-only reference check; historical release URLs remain evidence of their original date. Existing release JVM XML confirms 126 tests, zero failures/errors/skips. This audit does not rerun the APK or certify every external API. Archive/member/checksum verification accompanies publication.
 
+## APK inclusion follow-up — October 12, 2026
+
+The current signed `releases/Newleaf-0.1.4.apk` is now included in the private repository beside its guides and linked from README/INSTALL. The APK ignore rule now has a current-version exception; update that exception and both download links with each future release. APK signature, package/version code and SHA-256 were rechecked against the recorded release identity. APK bytes and application behavior are unchanged; no application build or device test was rerun. Refreshed source/documentation bundles accompany the APK in Project files.
+
 ## Known application/acceptance limits
 
 - The current APK emits legacy manifest.app_version=0.1.0 and spec_version=0.1; schema_version=1.0 remains the portable-format identifier. This documentation update records the producer limitation and does not repair application code.
@@ -28,4 +32,4 @@ Removed proposal-only status and authorization language, reconciled direct Food/
 3. Preserve historical release results; record fresh commands/results separately. Never claim physical-device or live-provider validation from fixture replays.
 4. Check every local Markdown link and fragment, named handoff file and archive member. Keep fictional examples distinct from personal data. Regenerate a sample only when its format/content needs change.
 5. After documentation-only changes, rerun scripts/package.py, verify source ZIP integrity and CHECKSUMS, and publish the refreshed documentation/source files. Keep the APK and its exact mapping/signature. Rebuild/retest only for an application change.
-6. Commit/push the reviewed documents to the private repository. Publish each final downloadable file through Project files; previous immutable artifacts remain historical.
+6. Commit/push the reviewed documents and current signed APK to the private repository. For each new release update the APK exception in `.gitignore` and README/INSTALL download links, and verify the pushed tree contains the exact release APK. Publish each final downloadable file through Project files; previous immutable artifacts remain historical.

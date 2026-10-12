@@ -4,7 +4,7 @@ Documentation reviewed October 11, 2026 against the unchanged 0.1.4 APK.
 
 ## On your Galaxy S25 Ultra
 
-1. Download `Newleaf-0.1.4.apk` from the Project files to your phone.
+1. Download `Newleaf-0.1.4.apk` from Project files or the [private repository](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.4.apk) to your phone. Repository downloads require GitHub sign-in.
 2. Open the file through Samsung My Files or your download notification.
 3. If Android asks, allow app installation for the app you used to open this file, then tap Install.
 4. If you already have Newleaf installed, install this update over it; do not uninstall. Your local journal and source credentials stay on the device.

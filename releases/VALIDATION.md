@@ -38,4 +38,4 @@ The APK is unchanged. Current product/user/build/data/provider documents were re
 
 ## Delivery
 
-All named deliverables are verified by scripts/package.py before delivery: signed APK, INSTALL/CHANGELOG/VALIDATION, signature/checksums/mapping, app/gateway source and secrets-free configuration, build/license notices, and fictional JSON/Markdown/CSV/attachment-backup examples. Source ZIP integrity and excluded private files are checked. Application/release documentation is committed and pushed to the existing private repository; binaries are delivered through Project files.
+All named deliverables are verified by scripts/package.py before delivery: signed APK, INSTALL/CHANGELOG/VALIDATION, signature/checksums/mapping, app/gateway source and secrets-free configuration, build/license notices, and fictional JSON/Markdown/CSV/attachment-backup examples. Source ZIP integrity and excluded private files are checked. Application/release documentation is committed and pushed to the existing private repository; the current signed APK is also included in `releases/` in the private repository and delivered through Project files.

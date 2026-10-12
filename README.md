@@ -6,7 +6,9 @@ Newleaf is a personal Android journal for food, drinks, movement, body weight an
 
 ## Current release
 
-**0.1.4 · version code 6 · package `com.khaleel.newleaf`**. Android 10/API 29 or newer; compiled and targeted against API 36. The primary device is the Samsung Galaxy S25 Ultra. Distribution is a signed APK through Project files; there is no Play Store listing.
+**0.1.4 · version code 6 · package `com.khaleel.newleaf`**. Android 10/API 29 or newer; compiled and targeted against API 36. The primary device is the Samsung Galaxy S25 Ultra. Distribution is a signed APK through Project files and this private repository; there is no Play Store listing.
+
+[Download Newleaf 0.1.4 APK](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.4.apk) (GitHub sign-in required). Install over your existing app without uninstalling. The APK is unchanged from the original 0.1.4 release; its checksum and public signing identity are recorded in `releases/CHECKSUMS.txt` and `releases/SIGNATURE.txt`.
 
 Today opens food, drink, activity, steps and weight forms directly. Scan opens packaged-product review with a required category, visible populated nutrition and one Add to journal action. Reported whole-package measurements support fractions and percentages; missing nutrition stays unknown. Manual logging and exports work offline.
 
@@ -40,4 +42,4 @@ The 0.1.4 release record reports **126 JVM tests and 38 signed-release emulator 
 
 ## Repository and maintenance
 
-The owner's private repository is `khaleelclark/Newleaf`. Keep source and documentation together; distribute release binaries separately in Project files. Never commit real journal data, credentials, signing keys/passwords, local SDK configuration or build caches. Signing-key custody and recovery are described in [Build](BUILD.md).
+The owner's private repository is `khaleelclark/Newleaf`. Keep source, documentation and the current signed release APK together. The APK is tracked in `releases/` and also published in Project files. Older release APKs and development builds remain excluded from version control. Never commit real journal data, credentials, signing keys/passwords, local SDK configuration or build caches. Signing-key custody and recovery are described in [Build](BUILD.md).

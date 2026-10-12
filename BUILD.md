@@ -30,7 +30,7 @@ For the repeatable signed handoff, run `scripts/release.sh`. It builds the minif
 
 Mapped release instrumentation uses `-Pnewleaf.testBuildType=release`. Sign the resulting `app/build/outputs/apk/androidTest/release/app-release-androidTest.apk` with the same release key, install it and the release APK on the chosen test device, then run `adb -s DEVICE_SERIAL shell am instrument -w -r com.khaleel.newleaf.test/androidx.test.runner.AndroidJUnitRunner`. Kotlin, coroutine, Compose and tracing runtime ABI keep rules preserve libraries shared with this test runner. Do not install or test against unrelated connected devices.
 
-The installable signed APK, checksum, public signing details, mapping file and validation evidence belong in `releases/`. Release documentation records exactly what was built and tested, including unconfigured nutrition providers and device testing limits.
+The installable signed APK, checksum, public signing details, mapping file and validation evidence belong in `releases/`. Release documentation records exactly what was built and tested, including unconfigured nutrition providers and device testing limits. Keep the current signed `Newleaf-<version>.apk` tracked in the private repository: update the version-specific exception in `.gitignore`, refresh the README/install download links, and confirm the APK is included in the pushed commit. Publish the same verified bytes through Project files. Older/development APKs remain ignored.
 
 ## Nutrition service
 

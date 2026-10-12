@@ -74,7 +74,7 @@ Physical S25 Ultra installation prompts, camera/catalog/network behavior, Samsun
 
 Before publishing a release, verify each actual file, then run scripts/package.py:
 
-- releases/Newleaf-<version>.apk, signed with the established key and increased version code for an app update.
+- releases/Newleaf-<version>.apk, signed with the established key and increased version code for an app update; tracked in the private repository through the current-version `.gitignore` exception and also published through Project files. README/install download links must point to that version.
 - releases/INSTALL.md, CHANGELOG.md and VALIDATION.md matching that APK.
 - releases/SIGNATURE.txt, MAPPING.txt and CHECKSUMS.txt; retain the exact minification map for that APK.
 - Newleaf-<version>-source.zip containing application/gateway source, build instructions, docs, schemas/tests and secrets-free gateway/.env.example.
