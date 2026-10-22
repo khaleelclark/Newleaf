@@ -1,6 +1,6 @@
 # Experience and visual specification
 
-Implemented experience for Newleaf 0.1.4; reviewed October 11, 2026. Current verification is recorded in [release validation](../releases/VALIDATION.md).
+Implemented experience for Newleaf 0.1.5; reviewed October 22, 2026. Current verification is recorded in [release validation](../releases/VALIDATION.md).
 
 ## 1. Interaction principles
 
@@ -122,7 +122,7 @@ History offers date navigation, search, and type filters without a complicated c
 
 Trends use simple line/bar charts with range selectors, readable units, counts, and visible missing-data gaps. Chart details explain known totals, averaging, and coverage in ordinary language. Always provide an accessible text/table equivalent.
 
-Export flow: select date range, format and notes/attachments/library options, then Save export or Share using Android through the system controls. The form shows the total journal count rather than a selected-range/size preview; incompatible source restrictions fail visibly during preparation. Selecting photos produces a ZIP with structured data, spreadsheet views, report and attachments. Restore separately shows validated counts/storage needs before commit. Cancel returns without claiming success. Backup and restore are separate labeled actions so users understand which files can fully restore the journal.
+Export flow: select date range, format and notes/attachments/library options, then Save export or Share using Android through the system controls. The form previews selected-record/date counts, contextual records and an approximate size; actual prepared size is shown after preparation. The lightweight preview can omit recipe-linked context and nested/contextual photo sizes, so it is not an exact size guarantee. Incompatible source restrictions fail visibly during preparation. Selecting photos produces a ZIP with structured data, spreadsheet views, report and attachments. Restore separately shows validated counts/storage needs before commit. Cancel returns without claiming success. Backup and restore are separate labeled actions so users understand which files can fully restore the journal.
 
 ## 9. Implemented visual system
 
@@ -170,3 +170,12 @@ Current build, JVM, signed-release emulator and visual evidence is in [validatio
 Barcode review shows a reported whole package separately from one label serving. With an explicit normalized package size, it starts at one package. Amount 0.5 package and Percent of package 50 represent the same consumed quantity; all supplied nutrients scale once and remain visible. Unit changes convert the existing consumed amount using explicit definitions, or clear it when conversion is unavailable. A multipack's package is the whole outer package, with its original label text visible. Missing package size offers measured units/known label servings without inventing size or density.
 
 Review, confirmed food/drink drafts, and saved entry details show populated nutrition without opening Details. Extra provider nutrients retain their units; classification (NOVA) and duplicate kJ energy are not nutrition amount rows. Editing/reference provenance remains secondary. Movement → Log weight starts a body measurement with its name supplied, so only weight/unit and Save weight are needed.
+
+## Reference-based clarity and accessibility — 0.1.5
+
+[Ponytail and the owner's UX reference](UX_PRINCIPLES.md) now guide ongoing changes.
+Shared sections expose heading semantics, details/selectors expose expansion state,
+and entry/barcode failures use a polite accessibility live region. Scan review explains
+why Add is disabled before category selection. Existing direct logging, populated
+nutrition, package scaling and one explicit commit remain in place. Semantics tests
+verify the app contract; they do not certify physical-phone TalkBack speech or navigation.

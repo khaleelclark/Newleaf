@@ -1,6 +1,18 @@
+# Newleaf 0.1.5
+
+Current release, October 22, 2026. See [validation](VALIDATION.md) and [install/use](INSTALL.md).
+
+- Adopt the owner's Ponytail development guidance and UX book reference as durable repository rules, with a pinned upstream snapshot and MIT notice.
+- Explain the required scan category before Add to journal becomes enabled; remove the hint after selection.
+- Expose shared section headings and expanded/collapsed selector/details states to accessibility services.
+- Present barcode lookup, entry validation and save errors as polite accessibility announcements, retaining retry and draft safety.
+- Export manifest and nutrition request User-Agent identify the installed version instead of 0.1.0.
+- Restored mL preferences now display metric labels consistently in settings, goals, Today and Trends.
+- Version code 7, established signing identity and unchanged database schema support in-place updates. No new Android dependency, analytics or nutrition calculation change.
+
 # Newleaf 0.1.4
 
-Current release. See [validation](VALIDATION.md) and [install/use](INSTALL.md); lower sections describe their named historical versions. Documentation refreshed October 11, 2026 without changing the APK.
+Historical 0.1.4 release. See [its validation record](VALIDATION-0.1.4.md).
 
 - Movement now includes Log weight. Enter a body weight and save; no measurement name is required.
 - Scanned nutrition appears automatically in review, confirmed drafts and entry details. Known zero values remain visible; missing values remain unknown. Details keeps editing/source controls secondary.

@@ -12,7 +12,8 @@ if not version_match:
 VERSION = version_match.group(1)
 required = [f'releases/Newleaf-{VERSION}.apk', 'releases/INSTALL.md', 'releases/CHANGELOG.md',
             'releases/VALIDATION.md', 'releases/SIGNATURE.txt', 'BUILD.md', 'THIRD_PARTY_NOTICES.md',
-            'releases/MAPPING.txt',
+            'releases/MAPPING.txt', 'AGENTS.md', 'docs/UX_PRINCIPLES.md', 'docs/REPOSITORY_REVIEW.md',
+            'docs/references/ponytail-AGENTS.md', 'docs/references/ponytail-LICENSE.txt',
             'gateway/README.md', 'gateway/.env.example', 'gateway/server.py',
             'releases/samples/example-journal.json', 'releases/samples/example-report.md',
             'releases/samples/example-spreadsheets.zip', 'releases/samples/example-backup.zip']
@@ -20,7 +21,7 @@ missing = [name for name in required if not (ROOT / name).is_file() or (ROOT / n
 if missing:
     raise SystemExit('Handoff is incomplete: ' + ', '.join(missing))
 
-top_files = ['README.md', 'BUILD.md', 'THIRD_PARTY_NOTICES.md', '.gitignore', 'settings.gradle.kts',
+top_files = ['AGENTS.md', 'README.md', 'BUILD.md', 'THIRD_PARTY_NOTICES.md', '.gitignore', 'settings.gradle.kts',
              'build.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat',
              'app/build.gradle.kts', 'app/proguard-rules.pro']
 files = {ROOT / name for name in top_files}

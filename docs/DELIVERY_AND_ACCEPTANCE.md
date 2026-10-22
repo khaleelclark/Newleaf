@@ -1,6 +1,6 @@
 # Architecture, acceptance and delivery
 
-Current implementation: Newleaf 0.1.4. Documentation reviewed October 11, 2026. APK distribution is personal; public app-store delivery, paid services and a hosted gateway deployment are outside the current release.
+Current implementation: Newleaf 0.1.5. Documentation reviewed October 22, 2026. APK distribution is personal; public app-store delivery, paid services and a hosted gateway deployment are outside the current release.
 
 ## Architecture
 
@@ -66,7 +66,7 @@ Additional 0.1.4 regressions cover direct weight logging, visible populated nutr
 
 ## Release evidence and open checks
 
-The recorded 0.1.4 release passed 126 JVM tests and 38 mapped signed-release emulator tests on Android16/API36 x86_64. A font-scale1.6 half-bottle repeat is separate evidence, not an extra unique test. Lint recorded zero errors and 22 warnings. Historical theme/provider/gateway checks are not silently counted as new runs. Exact results and limits are in release validation.
+The current 0.1.5 build, JVM, mapped signed-release instrumentation and visual results are recorded in release validation. The prior 0.1.4 record is preserved separately. Historical provider/gateway evidence is not counted as a new run.
 
 Physical S25 Ultra installation prompts, camera/catalog/network behavior, Samsung keyboard, TalkBack and target-phone performance remain to be checked. The original targets of entry-save feedback within 300ms and cold start within 2s with at least one year of representative data have not been certified on the phone. OFF's owner contact User-Agent override and optional gateway HTTPS/proxy operation remain distribution/deployment tasks.
 
@@ -79,6 +79,7 @@ Before publishing a release, verify each actual file, then run scripts/package.p
 - releases/SIGNATURE.txt, MAPPING.txt and CHECKSUMS.txt; retain the exact minification map for that APK.
 - Newleaf-<version>-source.zip containing application/gateway source, build instructions, docs, schemas/tests and secrets-free gateway/.env.example.
 - releases/samples/example-journal.json, example-report.md, example-spreadsheets.zip and example-backup.zip plus sample README; fictional data only.
+- AGENTS.md, docs/UX_PRINCIPLES.md and the pinned Ponytail snapshot/license in source packages.
 - Named documents in the README index, valid local links, and explicit boundaries between release evidence and acceptance targets.
 
 Never publish signing keys/passwords, device/provider credentials, local SDK paths or real journal data. Back up the established signing identity privately before relying on future updates. Run release/unit/lint checks and mapped instrumentation after code changes; documentation-only maintenance validates links, file contents, packaging and checksums without implying a new APK test run. See [documentation procedure](DOCUMENTATION_STATUS.md).

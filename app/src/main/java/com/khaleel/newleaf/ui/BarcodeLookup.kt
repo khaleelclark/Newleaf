@@ -79,7 +79,7 @@ internal fun BarcodeLookupSection(lookup:suspend (String)->FoodCandidate?,onRevi
             Caption("Finding product…")
             LinearProgressIndicator(Modifier.fillMaxWidth())
         }
-        flow.message?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+        flow.message?.let { ErrorMessage(it) }
     }
     LaunchedEffect(flow.loading,flow.message) {
         if(flow.loading || flow.message!=null)statusRequester.bringIntoView()

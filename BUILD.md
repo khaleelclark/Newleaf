@@ -8,7 +8,7 @@ Newleaf is a native Android application. The nutrition gateway is a separate ser
 - Android SDK platform 36; release.sh defaults to build-tools 35.0.0. Install that tool version or set NEWLEAF_BUILD_TOOLS to an installed compatible build-tools directory.
 - Network access for the initial Gradle/dependency download.
 
-The repository pins Gradle 8.13, Android Gradle plugin 8.12.0, Kotlin/Compose compiler 2.2.10 and KSP 2.2.10-2.0.2. Room is 2.8.5 and Compose BOM is 2025.08.00. app/build.gradle.kts declares release 0.1.4/code6, minSdk29, compile/targetSdk36. The checked-in wrapper downloads Gradle. Use Android Studio's SDK settings, or create an ignored `local.properties` containing `sdk.dir=/absolute/path/to/your/Android/Sdk`.
+The repository pins Gradle 8.13, Android Gradle plugin 8.12.0, Kotlin/Compose compiler 2.2.10 and KSP 2.2.10-2.0.2. Room is 2.8.5 and Compose BOM is 2025.08.00. app/build.gradle.kts declares release 0.1.5/code7, minSdk29, compile/targetSdk36. The checked-in wrapper downloads Gradle. Use Android Studio's SDK settings, or create an ignored `local.properties` containing `sdk.dir=/absolute/path/to/your/Android/Sdk`.
 
 From this directory:
 

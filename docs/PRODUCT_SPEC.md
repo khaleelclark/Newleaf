@@ -1,6 +1,6 @@
 # Newleaf product specification
 
-Current behavior for Newleaf 0.1.4. Documentation reviewed October 11, 2026. Release evidence and remaining acceptance work are in [validation](../releases/VALIDATION.md).
+Current behavior for Newleaf 0.1.5. Documentation reviewed October 22, 2026. Release evidence and remaining acceptance work are in [validation](../releases/VALIDATION.md).
 
 ## 1. Product purpose
 

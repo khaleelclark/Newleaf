@@ -1,6 +1,7 @@
 package com.khaleel.newleaf.data
 
 import com.google.gson.*
+import com.khaleel.newleaf.BuildConfig
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
@@ -91,7 +92,7 @@ object JournalExports {
         val summaries = sanitized.filter { it.id in selected && !it.isLibrary }.map { it.localDate }.distinct().sorted().map { Summaries.day(sanitized.filter { it.id in selected }, it) }
         val manifest = JsonObject().apply {
             addProperty("export_id", UUID.randomUUID().toString()); addProperty("generated_at", Instant.now().toString())
-            addProperty("app_version", "0.1.0"); addProperty("spec_version", "0.1"); addProperty("full_backup", fullBackup)
+            addProperty("app_version", BuildConfig.VERSION_NAME); addProperty("spec_version", "0.1"); addProperty("full_backup", fullBackup)
             add("options", JournalCodec.gson.toJsonTree(options)); addProperty("date_policy", "preserved local event date; inclusive")
             addProperty("selected_count", selected.size); addProperty("context_count", context.size)
             add("context_only_ids", JournalCodec.gson.toJsonTree(context.sorted()))

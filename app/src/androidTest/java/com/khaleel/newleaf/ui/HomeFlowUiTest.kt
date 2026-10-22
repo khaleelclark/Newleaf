@@ -40,7 +40,7 @@ class HomeFlowUiTest {
         screenshot("home")
         ui.onNodeWithContentDescription("Scan barcode").assertIsDisplayed()
         ui.onNodeWithText("Log food").performScrollTo().performClick()
-        ui.onNodeWithText("What did you eat?").assertIsDisplayed()
+        ui.onNode(hasText("What did you eat?") and hasAnyAncestor(isDialog())).assertIsDisplayed()
         ui.onNodeWithText("Amount (optional)").assertDoesNotExist()
         ui.onNodeWithText("Calories (optional)").assertDoesNotExist()
         val text="Eggs, toast and an apple ${UUID.randomUUID()}"
@@ -60,7 +60,7 @@ class HomeFlowUiTest {
         ui.onNodeWithText("Log drink").performScrollTo().performClick()
         ui.onNodeWithText("What did you drink?").assertIsDisplayed()
         ui.onNodeWithContentDescription("Drink: Water").performClick()
-        ui.onNodeWithText("Coffee").performClick()
+        ui.onNode(hasText("Coffee") and hasAnyAncestor(isPopup())).performClick()
         ui.onNodeWithText("Volume (optional)").performTextInput("12")
         screenshot("drink")
         ui.onNodeWithText("Save drink").assertIsDisplayed().performClick()
@@ -96,7 +96,7 @@ class HomeFlowUiTest {
     }
     @Test fun movementWeightShortcutSavesWithoutNamingTheMeasurement()=withJournal {repository,before->
         ui.onNodeWithText("Log weight").performScrollTo().performClick()
-        ui.onNodeWithText("Body weight").performTextInput("170")
+        ui.onNode(hasText("Body weight") and hasSetTextAction()).performTextInput("170")
         ui.onNodeWithText("Name").assertDoesNotExist()
         ui.onNodeWithText("Save weight").assertIsDisplayed().performClick()
         ui.waitUntil(10_000){repository.state.value.entries.any{it.id !in before.entries.map{old->old.id}}}

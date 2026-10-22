@@ -1,41 +1,108 @@
-# Newleaf 0.1.4 — validation record
+# Newleaf 0.1.5 — validation record
 
-October 2, 2026. Owner follow-up: quick weight logging under activity, fractional/percentage packages after scanning, and always-visible populated nutrition. Previous evidence is preserved in [VALIDATION-0.1.3.md](VALIDATION-0.1.3.md) and earlier version records.
+October 22, 2026. Repository pass using the owner's Ponytail and UX references.
+Previous release evidence is preserved in [VALIDATION-0.1.4.md](VALIDATION-0.1.4.md).
+See the [repository review](../docs/REPOSITORY_REVIEW.md) for fixed and open findings,
+and [principles](../docs/UX_PRINCIPLES.md) for exact reference scope and provenance.
 
-## Implemented behavior
+## Implemented changes
 
-Movement → Log weight opens a body-weight measurement directly, with an automatic measurement name, preferred lb/kg and Save weight. Existing multiple-measurement/date/trend behavior remains intact.
+Repository AGENTS.md points to a pinned Ponytail compact ruleset with its complete MIT
+license, and an original Newleaf application of reviewed sections from the owner-supplied
+UX book. These references travel in the source package. No new Android dependency,
+agent hook, analytics, or copy of the copyrighted PDF is included.
 
-Scan requests explicit normalized package size and shows whole package separately from label serving. A reported package starts at one package, labeled for review. Amount 0.5 package and Percent of package 50 both save quantity 0.5 package; all available nutrition scales once. Switching between package/serving/measured units converts the existing amount using explicit definitions, or clears an unsupported amount. Original percentage input is retained in metadata. Multipacks mean the complete outer package, with original label text visible. No package is inferred from quantity text or arbitrary density.
+Shared sections expose heading semantics; details/selectors expose expansion state.
+Entry, barcode, Settings and export/restore errors use one polite live-region component.
+Scan explains that a category is needed before Add; selecting one removes the hint.
+Existing required-category, unknown nutrition, fraction/percentage conversion, explicit
+commit, busy lock, cancellation and save-error retry contracts remain in place.
 
-Populated nutrition appears in product review, confirmed food/drink drafts and saved entry details without opening Details. Known zeroes appear; absent nutrients remain unknown. Non-nutrient NOVA classification and duplicate kJ energy are excluded from nutrition amount rows. If consumed nutrition cannot be converted, the label reference remains visible with a distinct basis and explanation; it is never represented as consumed nutrition. Editing/source controls remain secondary. Quick scan still requires category, one explicit Add, duplicate/busy locks, sanitized errors and cancellation without save.
+Accepted ml/mL preferences now receive consistent metric labels in Today, entry details,
+Trends, preferences and goal fields. A restored mL preference is exercised through real
+app navigation and an actual persisted water entry while retaining existing records.
+Export manifest.app_version and outbound nutrition User-Agent now use the build version.
+Schema_version remains 1.0; spec_version remains the independent legacy marker 0.1.
+Regenerated fictional export samples identify producer 0.1.5 and pass round-trip checks.
 
-## Build and automated checks
+## Build and automated evidence
 
-Final signed minified release build passed (`/tmp/newleaf-portions-release-final.log`, 1m 8s). **126 JVM tests passed**, zero failures/errors/skips; 51 are nutrition tests. Lint: zero errors, 22 existing warnings. A new Android test initially inferred a non-void return, producing a runner initialization failure; its return is now explicitly Unit. A test-only unavailable keyboard helper was removed before the final successful build. Those intermediate runs are not acceptance evidence.
+- Final application source: scripts/release.sh passed in 3m28s, building the minified
+  release and mapped instrumentation APK and running release unit/lint checks
+  (`/tmp/newleaf-015-release-final.log`). Subsequent changes were test-only. The final
+  test-package build passed in 45s (`/tmp/newleaf-015-release-final-scope.log`), with the
+  release app and JVM tasks up to date. The signed application bytes are unchanged
+  across those test refinements.
+- **126 JVM tests passed**, zero failures/errors/skips, across seven XML suites in
+  app/build/test-results/testReleaseUnitTest. Backup producer-version and fixture
+  User-Agent assertions cover the repaired metadata.
+- Lint: **zero errors, 22 warnings** in app/build/reports/lint-results-release.xml.
+  Existing compiler warnings concern a deprecated walk icon and a nullable test-only
+  Java platform type; these are not silently presented as a warning-free build.
+- Final mapped, signed-release instrumentation: **41 passed**, zero failures, 48.707s
+  (`/tmp/newleaf-015-device-final-scope.log`). New regressions exercise heading and
+  expansion semantics, disclosure input retention, disabled selection, restored metric
+  labels/preferences, required-category help and announced failed-save retry.
+- A separate font-scale1.6 repeat of name-only food and half-bottle percentage save
+  passed **two tests** in 17.699s (`/tmp/newleaf-015-large-dark.log`). These are repeat
+  cases, not additional unique tests in the 41 total.
+- Optional gateway: **20 local tests passed** in 0.617s
+  (`python3 -m unittest discover -s gateway/tests -v`, `/tmp/newleaf-015-gateway.log`).
+  Source is unchanged; fake transports and local HTTP tests do not validate deployment.
 
-Final mapped signed-release instrumentation: **38 passed**, zero failures, 39.531s (`/tmp/newleaf-portions-device-final.log`). A targeted repeat of the half-bottle save/reload test at font scale 1.6 passed (one test, 4.041s, `/tmp/newleaf-portions-large-text.log`); it is not counted again in the 38 unique tests.
+Intermediate runner attempts exposed ambiguous text selectors, release-optimized interfaces
+called directly by new tests, and an interaction between a temporary replacement journal
+and normal old-photo cleanup. Tests now target actual dialogs/popups/editable fields,
+reuse shared Panel/app navigation, and preserve existing records during unit-preference
+checks. The emulator's original 25-record/one-photo fictional baseline was restored through
+Newleaf's file-picker/replace flow; a read-only check confirmed the records and photo file.
+The missing 68-byte fixture was recovered from the local recovery archive with its SHA-256
+verified before restoration. Intermediate failed runs are not acceptance evidence.
 
-New checks cover the metadata-only-first OFF set, one-source nutrient isolation, half package versus half label serving, normalized multipacks, invalid/missing/unsupported package sizes, no guessed density, package-to-measured-to-serving conversion, invalid zero amount without saving, weight shortcut without naming, visible populated nutrition, percentage live preview, one durable save/reload, original input metadata, unknown protein and soda/water separation. The package snapshot also round-trips through backup/restore with definitions, nutrition, source and units preserved; JSON/Markdown retain package identity. Existing full suites continue to exercise persistence, credential isolation, drafts, offline/manual scan paths, date navigation, library and export/restore/year data.
+## Signing and install
 
-## Public provider evidence
+Owned Newleaf_API36 emulator, Android16/API36 x86_64, serial emulator-5582. The unrelated
+Household emulator was not installed to or tested. Newleaf installed over 0.1.4 with
+adb install -r; no uninstall/data-clear was used. Installed version is 0.1.5/code7,
+package com.khaleel.newleaf, minSdk29/targetSdk36. No database/schema migration.
 
-Two keyless read-only OFF v3.6 requests for public barcode 5449000000996 succeeded, including the exact new fields projection. Returned product: Coca-Cola Original, quantity 330 ml, normalized product_quantity 330 and product_quantity_unit ml. Its first packaging/as_sold/100g set contains only NOVA classification; its next packaging/as_sold/100ml set supplies kcal, carbohydrate, sugar, fat, protein, saturated fat and salt/sodium data. This observed shape motivates the regression: prefer the nutrient-bearing supported set, keep its origin and do not stitch companion nutrient values. The minimal offline regression predicts half of this 330 mL package as 165 mL, 69.3 kcal and 17.49 g sugar; live inspection verifies the response contract, not physical camera decoding or arbitrary catalog coverage.
+Apksigner verification passed. Application and mapped test package match the established
+release certificate SHA-256:
+277efd44109c70d79c1c64c9c20c1ed1a3f1ecf1f5b082130059f762f1262d8d.
+Application SHA-256:
+41ca9f0e56a4649c32503485e6f948aed9b42bc55579d9623e8abb35c9e992ea.
+Public signing details and final deliverable digests are in SIGNATURE.txt and CHECKSUMS.txt.
 
-Official references: [product fields](https://openfoodfacts.github.io/documentation/docs/Product-Opener/schemas/schemas/product_base/), [nutrition schema](https://openfoodfacts.github.io/documentation/docs/Product-Opener/schemas/schemas/product_nutrition/), [nutrition origins/bases](https://openfoodfacts.github.io/documentation/docs/Product-Opener/dev/explain-nutrition-data/). Existing OFF attribution/license and independent nutrition-subset export policy remain intact. No USDA request, provider credential access, paid service or gateway change was needed.
+## Visual evidence and boundaries
 
-## Device and visual evidence
+Actual captures are in /tmp/newleaf-015-evidence/: home-light, food-keyboard-light,
+half-bottle-light, home-large-light-system-night, food-keyboard-large-light-system-night
+and half-bottle-large-light-system-night PNGs. Home, large food and large half-bottle
+captures were inspected. The half-bottle review shows 50 percent, 120 kcal, 30g sugar,
+scrollable content, and Add/Cancel visible above the numeric keyboard. Long entry text
+and identifiers are fictional test fixtures. The large food capture shows Save visible;
+it does not show a food text keyboard, so no broader keyboard claim follows from it.
 
-Owned Newleaf_API36 emulator, Android 16/API 36, x86_64. Signed APK installed over 0.1.3 without uninstall; existing journal/onboarding retained. Installed version verified as 0.1.4/code 6, minSdk29/targetSdk36. Public certificate SHA-256 matches prior releases: 277efd44109c70d79c1c64c9c20c1ed1a3f1ecf1f5b082130059f762f1262d8d. Apksigner verification passed. No migration/schema change.
+System night mode was requested for the font-scale1.6 repeat, but the journal's explicit
+light app preference remained in force. The numeric keyboard is dark; these images do
+not establish full dark-app visual acceptance. Light icons over the light food-sheet
+status area have low contrast in this configuration and are an open review finding.
+Original emulator font/night preferences were restored after the repeat. The shared
+selector test separately composes NewleafTheme(dark), testing semantics rather than
+full-app visual appearance.
 
-Actual screenshots in `/tmp/newleaf-portions-evidence/`: home, product review, half-bottle percentage with keyboard and half-bottle at font scale 1.6. Home shows the weight shortcut under Movement; both percentage screenshots show populated sugar/calories and Add/Cancel fully visible above the numeric keyboard. Content scrolls at larger text sizes. The font setting was restored to 1.0 afterward.
+Physical S25 Ultra camera/network/catalog coverage, Samsung keyboard, spoken TalkBack
+and one-year startup/save performance remain unverified. No live USDA/OFF request,
+provider credential inspection, paid service or gateway deployment was performed.
+Unreadable encrypted credentials can still block journal loading; approximate export
+preview counts/sizes and the status-area contrast issue remain open in the review.
+This is a verified personal APK update and a review report, not broad production certification.
 
-Physical S25 Ultra camera/network/catalog coverage, Samsung keyboard and TalkBack remain target-phone checks. This iteration visually checks the current light theme; previous theme checks are historical. Gateway's 20-test result is historical and was not rerun for this app-only revision.
+## Delivery verification
 
-## Documentation maintenance — October 11, 2026
-
-The APK is unchanged. Current product/user/build/data/provider documents were reconciled against 0.1.4 source, local links checked, historical records labeled and source/documentation archives refreshed. Existing release JVM XML still reports 126 tests with zero failures/errors/skips; Android results above remain the recorded October2 evidence. No new application build, device run or provider request is claimed. Known export metadata limitation: manifest.app_version remains 0.1.0 and spec_version 0.1; see the [data contract](../docs/DATA_AND_EXPORTS.md). Phone/performance checks remain open.
-
-## Delivery
-
-All named deliverables are verified by scripts/package.py before delivery: signed APK, INSTALL/CHANGELOG/VALIDATION, signature/checksums/mapping, app/gateway source and secrets-free configuration, build/license notices, and fictional JSON/Markdown/CSV/attachment-backup examples. Source ZIP integrity and excluded private files are checked. Application/release documentation is committed and pushed to the existing private repository; the current signed APK is also included in `releases/` in the private repository and delivered through Project files.
+scripts/package.py verifies the signed APK, install/changelog/validation, signing/mapping,
+source/build material, repository guidance, review/principles, pinned Ponytail snapshot and
+license, optional gateway and fictional samples before producing the source ZIP/checksums.
+The source archive excludes private configuration, signing material, build caches and the PDF.
+The current signed APK is tracked in the private repository and published through Project
+files alongside the source and review documents. Historical Project artifacts remain immutable.

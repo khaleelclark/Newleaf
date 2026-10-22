@@ -483,7 +483,7 @@ class NutritionClientTest {
         assertTrue(e.sourceReference!!.license.contains("https://opendatacommons.org/licenses/odbl/1-0/"))
         assertTrue(e.sourceReference!!.license.contains("https://opendatacommons.org/licenses/dbcl/1-0/"))
         assertTrue(fake.requests.single().url.startsWith("https://world.openfoodfacts.org/api/v3.6/product/3017620422003.json"))
-        assertTrue(fake.requests.single().headers["User-Agent"]!!.startsWith("Newleaf/"))
+        assertEquals("Newleaf/${com.khaleel.newleaf.BuildConfig.VERSION_NAME} (personal Android food journal)",fake.requests.single().headers["User-Agent"])
         assertFalse(fake.requests.single().headers.containsKey("Authorization"))
     }
 

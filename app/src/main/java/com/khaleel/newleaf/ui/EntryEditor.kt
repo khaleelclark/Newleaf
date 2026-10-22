@@ -161,7 +161,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                     "Barcode"->BarcodeLookupSection(barcodeLookup,::reviewBarcode,::manualBarcode,{barcodeLoading=it},draft.lookupBarcode.orEmpty(),{if(it!=draft.lookupBarcode.orEmpty())onChange(draft.copy(lookupBarcode=it))},barcodeCapture)
                     else->{Field("Search foods",query,{query=it});Caption("Search sends your query $usdaRoute.");Action(if(loading)"Looking up…" else "Look up",enabled=!loading && query.isNotBlank()){lookup("Search",query)}}
                 }
-                error?.let { Caption(it) }
+                error?.let { ErrorMessage(it) }
                 if(loading)LinearProgressIndicator(Modifier.fillMaxWidth())
                 results.forEach { result->Panel { Text(result.name,style=MaterialTheme.typography.titleMedium);Caption(listOfNotNull(result.brand,result.source,result.quantity?.let{"${number(it)} ${result.unit}"},if(result.quantity==null)"Portion unknown"else if(result.estimated)"Estimated portion" else null).joinToString(" · "));Action("Review item",enabled=!loading){reviewCandidate(result,false)} } }
                 val local=journal.entries.filter { it.kind in listOf(EntryKind.FOOD,EntryKind.DRINK) && (query.isBlank() || it.name.contains(query,true)) }.distinctBy { "${it.name}:${it.quantity}:${it.unit}" }.sortedByDescending { it.isFavorite }.take(8)
@@ -193,7 +193,7 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
                             Action("Choose food",enabled=!loading){reviewCandidate(candidate,true)}
                         }}
                     }
-                    error?.let{Caption(it)}
+                    error?.let{ErrorMessage(it)}
                 }
             }
             if(draft.kind==EntryKind.ACTIVITY) {
@@ -254,11 +254,11 @@ internal fun EntryEditor(draft:EditorDraft,journal:Journal,busy:Boolean,onChange
             }
             }
             Disclosure("More details",content=additionalDetails)
-            if(lookupMode=="Manual")error?.let{Text(it,color=MaterialTheme.colorScheme.error)}
+            if(lookupMode=="Manual")error?.let{ErrorMessage(it)}
             Spacer(Modifier.height(24.dp))
         }
         Column(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            saveError?.let{Text(it,color=MaterialTheme.colorScheme.error)}
+            saveError?.let{ErrorMessage(it)}
             Action(if(busy)"Saving…" else if(!draft.isNew)"Save changes" else if(draft.saveAs!="journal" || draft.kind in listOf(EntryKind.RECIPE,EntryKind.TEMPLATE))"Save to library" else "Save ${kindName(draft.kind).lowercase()}",Modifier.fillMaxWidth(),primary=true,enabled=!busy && !loading && !barcodeLoading && !itemDialog && draft.name.isNotBlank(),onClick=onSave)
         }
         }
@@ -335,6 +335,7 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                 if(candidate==null && original?.name.isNullOrBlank())Field("Food or drink",name,{name=it},enabled=!locked)
                 if(quickLog) {
                     SelectField("Category",category,listOf("Breakfast","Lunch","Dinner","Snack","Other"),enabled=!locked,placeholder="Choose a category"){category=it}
+                    if(category.isBlank())Caption("Choose a category to enable Add to journal.")
                 }
                 if(allowAdditions)SelectField("Log as",if(kind==EntryKind.DRINK)"Drink"else"Food",listOf("Food","Drink"),enabled=!locked){kind=if(it=="Drink")EntryKind.DRINK else EntryKind.FOOD}
                 Field(if(percent)"Percent of package"else"Amount (optional)",quantity,{quantity=it;error=null},numeric=true,enabled=!locked)
@@ -381,8 +382,8 @@ internal fun PortionDialog(candidate:FoodCandidate?,original:Entry?,allowAdditio
                 }
 
             }
-                error?.let { Text(it,color=MaterialTheme.colorScheme.error) }
-                saveError?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+                error?.let { ErrorMessage(it) }
+                saveError?.let { ErrorMessage(it) }
                 Action(if(locked)"Adding…"else if(quickLog)"Add to journal"else"Confirm item",Modifier.fillMaxWidth(),primary=true,enabled=!locked && name.isNotBlank() && (!quickLog || category.isNotBlank())) {
                     if(busy || submitting || quickLog && category.isBlank())return@Action
                     runCatching {

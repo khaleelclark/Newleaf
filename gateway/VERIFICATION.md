@@ -1,6 +1,6 @@
 # Optional gateway verification
 
-Documentation reviewed October 11, 2026. Gateway source is included with Newleaf 0.1.4 but is optional and has no deployed production endpoint. [Release validation](../releases/VALIDATION.md) separates recorded Android results from historical gateway evidence.
+Documentation reviewed October 22, 2026. Gateway source is included with Newleaf 0.1.5 but is optional and has no deployed production endpoint. [Release validation](../releases/VALIDATION.md) separates recorded Android results from historical gateway evidence.
 
 ## Recorded test evidence
 
@@ -17,3 +17,11 @@ Historical authorized host USDA search/detail reads returned HTTP200; OFF public
 Before relying on a hosted gateway, configure the private key/token and persistent quota file in [setup](README.md), then verify authenticated HTTPS reachability, certificate trust, proxy total deadlines, input/header/body bounds, safe logging, unauthorized denial, quota persistence across restart and device cancellation. Socket timeouts alone do not impose a total request deadline. No production TLS/proxy/device provisioning or cloud deployment has been performed.
 
 Open Food Facts is called directly by the app, not proxied here. The default personal User-Agent identifies Newleaf; an owner-chosen contact override remains a broader-distribution task. Nutritionix stays disabled even with legacy credentials. Source mapping/export obligations are documented in [provider notes](PROVIDERS_AND_RIGHTS.md) and the [nutrition API](../app/src/main/java/com/khaleel/newleaf/nutrition/API.md).
+
+## October 22, 2026 repository pass
+
+`python3 -m unittest discover -s gateway/tests -v` passed all 20 tests in 0.617 seconds.
+This is a fresh local fixture/HTTP-boundary test run; gateway source is unchanged.
+No live provider request, credential inspection or deployment was performed.
+See the [repository review](../docs/REPOSITORY_REVIEW.md) and
+[current validation](../releases/VALIDATION.md) for the app revision.

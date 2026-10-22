@@ -13,7 +13,7 @@ __pycache__/
 releases/*-unsigned.apk
 releases/*.apk
 # Keep the current signed phone release alongside its guides. Update for each release.
-!releases/Newleaf-0.1.4.apk
+!releases/Newleaf-0.1.5.apk
 *.idsig
 releases/*-source.zip
 releases/MAPPING.txt

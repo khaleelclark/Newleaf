@@ -77,7 +77,7 @@ internal fun JournalScreen(journal:Journal,date:LocalDate,history:Boolean,busy:B
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 Action("Log drink",Modifier.weight(1f),enabled=!busy){onLog(EntryKind.DRINK)}
-                Action(if(journal.settings.volumeUnit=="ml")"+ ${number(16*29.5735295625)} mL water"else"+ 16 oz water",Modifier.weight(1f),enabled=!busy){onWater(16)}
+                Action(if(journal.settings.volumeUnit.equals("ml",true))"+ ${number(16*29.5735295625)} mL water"else"+ 16 oz water",Modifier.weight(1f),enabled=!busy){onWater(16)}
             }
         }
         TrackerCard("Movement",Icons.Outlined.DirectionsWalk) {

@@ -53,11 +53,11 @@ class QuickScanUiTest {
             ui.onNodeWithContentDescription("Scan barcode").performClick()
             ui.onNodeWithText("Log scanned item").assertIsDisplayed()
             ui.onAllNodesWithText(product.name)[0].assertExists()
-            ui.onNodeWithText("90 kcal").assertExists()
+            ui.onNode(hasText("90 kcal") and hasAnyAncestor(isDialog())).assertExists()
             ui.onNodeWithText("Add to journal").assertIsNotEnabled()
             ui.runOnIdle {assertEquals(1,captures);assertEquals(1,requests);assertEquals(before.entries.size,repository.state.value.entries.size)}
             ui.onNodeWithText("Choose a category").performScrollTo().performClick()
-            ui.onNodeWithText("Lunch").performClick()
+            ui.onNode(hasText("Lunch") and hasAnyAncestor(isPopup())).performClick()
             screenshot("product-review")
             ui.onNodeWithText("Add to journal").assertIsDisplayed().performClick()
             ui.waitUntil(10_000){repository.state.value.entries.any{it.name==product.name && it.id !in before.entries.map{old->old.id}}}
@@ -121,17 +121,17 @@ class QuickScanUiTest {
             ui.waitUntil(10_000){ui.onAllNodes(hasContentDescription("Scan barcode") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
             ui.onNodeWithContentDescription("Scan barcode").performClick()
             ui.onNodeWithText("Whole package: 500 mL",substring=true).assertExists()
-            ui.onNodeWithText("240 kcal").assertExists()
-            ui.onNodeWithText("Sugar · g: 60").assertExists()
+            ui.onNode(hasText("240 kcal") and hasAnyAncestor(isDialog())).assertExists()
+            ui.onNode(hasText("Sugar · g: 60") and hasAnyAncestor(isDialog())).assertExists()
             ui.onNodeWithText("Details").assertExists()
             ui.onNodeWithText("Choose a category").performScrollTo().performClick()
-            ui.onNodeWithText("Snack").performClick()
+            ui.onNode(hasText("Snack") and hasAnyAncestor(isPopup())).performClick()
             ui.onNodeWithContentDescription("Unit: package").performScrollTo().performClick()
             ui.onNodeWithText("Percent of package").performClick()
             ui.onNode(hasText("Percent of package") and hasSetTextAction()).performScrollTo().performTextReplacement("50")
-            ui.onNodeWithText("120 kcal").assertExists()
-            ui.onNodeWithText("Sugar · g: 30").assertExists()
-            ui.onNodeWithText("Sodium · mg: 20").assertExists()
+            ui.onNode(hasText("120 kcal") and hasAnyAncestor(isDialog())).assertExists()
+            ui.onNode(hasText("Sugar · g: 30") and hasAnyAncestor(isDialog())).assertExists()
+            ui.onNode(hasText("Sodium · mg: 20") and hasAnyAncestor(isDialog())).assertExists()
             ui.onNodeWithText("Protein · g: 0").assertDoesNotExist()
             ui.onNodeWithText("Sugar · g: 30").performScrollTo()
             screenshot("half-bottle")
@@ -152,7 +152,7 @@ class QuickScanUiTest {
             val reload=JournalRepository(InstrumentationRegistry.getInstrumentation().targetContext)
             try {assertEquals(entry,reload.awaitLoaded().entries.single{it.id==entry.id})} finally {reload.close()}
             ui.onNodeWithText(entry.name).performScrollTo().performClick()
-            ui.onNodeWithText("Sugar · g: 30").assertExists()
+            ui.onNode(hasText("Sugar · g: 30") and hasAnyAncestor(isDialog())).assertExists()
         } finally {repository.restoreJournal(before,replace=true);repository.close()}
     }
 

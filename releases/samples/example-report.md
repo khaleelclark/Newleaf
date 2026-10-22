@@ -1,6 +1,6 @@
 # Newleaf journal report
 
-Generated: 2026-10-02T15:26:10.900432559Z. Schema 1.0.
+Generated: 2026-10-22T23:42:22.885931421Z. Schema 1.0.
 Range: all earlier dates through all later dates, inclusive, preserved local dates.
 Selected records: 7; context-only records: 0.
 Notes: true; photo bytes: false; library: false; recipes: false.
@@ -58,7 +58,7 @@ Weight: 81.6466266 kg.
 ### 2026-09-28T13:30Z — After lunch (checkin)
 ID: sample-feeling; revision 1; zone UTC; source manual.
 Linked meal: sample-meal.
-Observed 3600 seconds after meal; entered 2026-10-02T15:26:10.805717468Z.
+Observed 3600 seconds after meal; entered 2026-10-22T23:42:22.788667711Z.
 Tags: satisfied.
 Ratings (1–5): {energy=4}.
 

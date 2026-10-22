@@ -1,6 +1,6 @@
 # Data, calculation, and export contract
 
-Implemented data/export contract for Newleaf 0.1.4; documentation reviewed October 11, 2026. Portable schema is `1.0`; Room database schema is `1`. See [data API](../app/src/main/java/com/khaleel/newleaf/data/API.md) for exact Kotlin interfaces.
+Implemented data/export contract for Newleaf 0.1.5; documentation reviewed October 22, 2026. Portable schema is `1.0`; Room database schema is `1`. See [data API](../app/src/main/java/com/khaleel/newleaf/data/API.md) for exact Kotlin interfaces.
 
 ## 1. Record conventions
 
@@ -84,7 +84,7 @@ Single UTF-8 file, schema_version `1.0`, with manifest, settings, canonical `rec
 
 Manifest fields: export ID, generation time, app/spec schema versions, selected range and date policy, display-unit preferences, included/excluded categories, context counts, per-table counts, source attribution, attachment inclusion, and any restrictions. Compatible extension fields are preserved and named credentials are stripped recursively. Unsupported future schema versions are rejected.
 
-Known 0.1.4 metadata limitation: `manifest.app_version` still emits `0.1.0` and `spec_version` emits `0.1`; neither identifies the installed APK version. Use schema_version to interpret files and the release APK/build metadata for app identity. Updating this producer metadata requires an application change.
+Producer identity: `manifest.app_version` uses the installed build version from 0.1.5 onward. Historical files may identify 0.1.0 even when made by 0.1.4. `spec_version` remains the legacy product-spec identifier `0.1`; use `schema_version=1.0` to interpret portable files.
 
 ### CSV bundle
 

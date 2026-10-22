@@ -1,6 +1,6 @@
 # Nutrition integration specification
 
-Current integration for Newleaf 0.1.4; reviewed October 11, 2026. USDA and Open Food Facts supply nutrition. Food list (Describe) provides bounded USDA-assisted review. Historical authorized host reads and current recorded mapper/portion evidence are in [release validation](../releases/VALIDATION.md). No hosted gateway or paid fallback is part of the release.
+Current integration for Newleaf 0.1.5; reviewed October 22, 2026. USDA and Open Food Facts supply nutrition. Food list (Describe) provides bounded USDA-assisted review. Historical authorized host reads and current recorded mapper/portion evidence are in [release validation](../releases/VALIDATION.md). No hosted gateway or paid fallback is part of the release.
 
 ## Sources and access
 

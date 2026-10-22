@@ -85,7 +85,7 @@ internal fun PortabilitySheet(journal:Journal,repository:JournalRepository,mode:
                 prepared?.let{Caption("Prepared file: ${it.size/1024} KB")}
             }
             if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-            error?.let{Caption(it)}
+            error?.let{ErrorMessage(it)}
             Spacer(Modifier.height(24.dp))
         }
     }

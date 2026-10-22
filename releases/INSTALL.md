@@ -1,10 +1,10 @@
-# Install and use Newleaf 0.1.4
+# Install and use Newleaf 0.1.5
 
-Documentation reviewed October 11, 2026 against the unchanged 0.1.4 APK.
+Updated October 22, 2026 for Newleaf 0.1.5.
 
 ## On your Galaxy S25 Ultra
 
-1. Download `Newleaf-0.1.4.apk` from Project files or the [private repository](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.4.apk) to your phone. Repository downloads require GitHub sign-in.
+1. Download `Newleaf-0.1.5.apk` from Project files or the [private repository](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.5.apk) to your phone. Repository downloads require GitHub sign-in.
 2. Open the file through Samsung My Files or your download notification.
 3. If Android asks, allow app installation for the app you used to open this file, then tap Install.
 4. If you already have Newleaf installed, install this update over it; do not uninstall. Your local journal and source credentials stay on the device.
@@ -21,7 +21,7 @@ No diary account is needed. The app starts empty; fictional sample exports are s
 - For drinks, choose Water, Coffee, Tea, Juice, Milk or Other, enter an optional volume, then Save drink. Other allows any name. Changing the beverage clears the previous product's nutrition; coffee is kept separate from water.
 - Tap + 16 oz water for one quick water entry, with Undo. Log drink accepts custom volumes.
 - Log activity opens distance/time; Add steps opens the day's step total. Log weight under Movement opens body weight directly; enter lb/kg and Save weight.
-- Scan is visible beside Settings. It opens the camera immediately for today. Point it at a packaged product barcode; a match opens automatically. Choose Breakfast/Lunch/Dinner/Snack/Other, review what you had, and tap Add to journal once. Cancel saves nothing.
+- Scan is visible beside Settings. It opens the camera immediately for today. Point it at a packaged product barcode; a match opens automatically. A hint explains that a category is required before Add to journal is enabled. Choose Breakfast/Lunch/Dinner/Snack/Other, review what you had, and tap Add to journal once. Cancel saves nothing.
 - Nutrition filled by scanning is visible in the review and stays visible after saving. Known nutrients update as you change the amount; missing nutrients remain unknown.
 - When package size is available, review starts at one whole package. For half a bottle enter 0.5 with Unit → package, or choose Unit → Percent of package and enter 50. A 500 mL bottle with a 250 mL label serving contains two servings; half the bottle is one serving. Check the reported package size against your label, especially multipacks (the whole outer package). Without package size, enter a measured volume/weight or a known label serving instead.
 - If camera access is declined or no product is found, type the barcode, scan again or use Enter it yourself. Missing nutrition stays unknown.

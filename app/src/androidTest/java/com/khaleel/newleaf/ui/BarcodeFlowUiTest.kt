@@ -2,6 +2,7 @@ package com.khaleel.newleaf.ui
 
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.*
@@ -175,8 +176,10 @@ class BarcodeFlowUiTest {
         ui.onNodeWithText("Confirm item").assertDoesNotExist()
         ui.onNodeWithText("Save food").assertDoesNotExist()
         ui.onNodeWithText("Add to journal").assertIsNotEnabled()
+        ui.onNodeWithText("Choose a category to enable Add to journal.").assertExists()
         ui.onNodeWithText("Choose a category").performScrollTo().performClick()
         ui.onNodeWithText("Lunch").performClick()
+        ui.onNodeWithText("Choose a category to enable Add to journal.").assertDoesNotExist()
         ui.onNode(hasText("Food") and hasClickAction()).performScrollTo().performClick()
         ui.onNodeWithText("Drink").performClick()
         ui.runOnIdle { assertEquals(0,adds) }
@@ -207,6 +210,7 @@ class BarcodeFlowUiTest {
         ui.onNodeWithText("Calories unknown for this portion").assertExists()
         ui.runOnIdle { assertEquals(0,adds);assertEquals(0,dismisses);busy.value=false }
         ui.onNodeWithText("Add to journal").assertIsNotEnabled()
+        ui.onNodeWithText("Choose a category to enable Add to journal.").assertExists()
         ui.onNodeWithText("Choose a category").performScrollTo().performClick()
         ui.onNodeWithText("Snack").performClick()
         ui.onNodeWithText("Add to journal").performClick()
@@ -218,6 +222,7 @@ class BarcodeFlowUiTest {
             failure.value="Could not save. Try again.";busy.value=false
         }
         ui.onNodeWithText("Could not save. Try again.").assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion,LiveRegionMode.Polite))
         ui.onNodeWithText("Add to journal").assertIsEnabled().performClick()
         ui.runOnIdle { assertEquals(2,adds);assertEquals(0,dismisses) }
     }

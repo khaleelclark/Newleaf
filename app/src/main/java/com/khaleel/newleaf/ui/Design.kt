@@ -25,6 +25,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -92,14 +96,20 @@ fun Field(label: String, value: String, onChange:(String)->Unit, modifier:Modifi
 fun Caption(text:String,modifier:Modifier=Modifier) { Text(text,modifier,color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodyMedium) }
 
 @Composable
-fun Section(title:String,detail:String?=null) { Column(verticalArrangement=Arrangement.spacedBy(4.dp)) { Text(title,style=MaterialTheme.typography.titleLarge); detail?.let { Caption(it) } } }
+fun Section(title:String,detail:String?=null) { Column(verticalArrangement=Arrangement.spacedBy(4.dp)) { Text(title,modifier=Modifier.semantics { heading() },style=MaterialTheme.typography.titleLarge); detail?.let { Caption(it) } } }
+
+/** New failures are available to accessibility services without moving input focus. */
+@Composable
+internal fun ErrorMessage(text:String) {
+    Text(text,color=MaterialTheme.colorScheme.error,modifier=Modifier.semantics { liveRegion=LiveRegionMode.Polite })
+}
 
 /** Optional controls stay out of the initial form and retain their state when collapsed. */
 @Composable
 internal fun Disclosure(label:String,content:@Composable ()->Unit) {
     var expanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-        TextButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+        TextButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).semantics { stateDescription=if(expanded)"Expanded"else"Collapsed" }) {
             Text(if(expanded)"Hide ${label.lowercase()}" else label)
         }
         if(expanded)content()
@@ -113,7 +123,7 @@ internal fun SelectField(label:String, value:String, options:List<String>, enabl
     Column(Modifier.fillMaxWidth()) {
         Caption(label)
         Box(Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick={expanded=true},enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).semantics { contentDescription="$label: ${value.ifBlank{if(optional)"optional, not selected"else"not selected"}}" },shape=RoundedCornerShape(14.dp)) {
+            OutlinedButton(onClick={expanded=true},enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).semantics { stateDescription=if(expanded && enabled)"Expanded"else"Collapsed";contentDescription="$label: ${value.ifBlank{if(optional)"optional, not selected"else"not selected"}}" },shape=RoundedCornerShape(14.dp)) {
                 Text(value.ifBlank{placeholder ?: if(optional)"Choose (optional)"else"Choose"},Modifier.weight(1f))
                 Text("▾")
             }

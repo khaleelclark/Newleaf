@@ -1,6 +1,7 @@
 package com.khaleel.newleaf.nutrition
 
 import com.google.gson.JsonObject
+import com.khaleel.newleaf.BuildConfig
 import com.khaleel.newleaf.data.AppSettings
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -20,12 +21,12 @@ data class GatewayStatus(val usda: ProviderStatus, val nutritionix: ProviderStat
 class NutritionClient(
     private val settings: AppSettings,
     private val transport: NutritionTransport = UrlConnectionTransport(),
-    private val openFoodFactsUserAgent: String = "Newleaf/0.1.0 (personal Android food journal)"
+    private val openFoodFactsUserAgent: String = "Newleaf/${BuildConfig.VERSION_NAME} (personal Android food journal)"
 ) {
     private val mutex = Mutex()
     private val inFlight = mutableSetOf<String>()
     private val off = "https://world.openfoodfacts.org/api/v3.6/product/"
-    private val userAgent = "Newleaf/0.1.0 (personal Android food journal)"
+    private val userAgent = "Newleaf/${BuildConfig.VERSION_NAME} (personal Android food journal)"
     private fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
     private fun personalKey(): String? {
         if (settings.usdaApiKey.isBlank()) return null

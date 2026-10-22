@@ -10,7 +10,7 @@ internal fun number(value: Double?): String = value?.let { if(it==it.toLong().to
 internal fun decimal(value: Double?): String = value?.toString()?.removeSuffix(".0") ?: ""
 internal fun entryTime(entry: Entry): String = runCatching { Instant.parse(entry.occurredAt).atZone(ZoneId.of(entry.zoneId)).format(DateTimeFormatter.ofPattern("h:mm a")) }.getOrDefault("")
 internal fun isJournal(entry: Entry)=!entry.isLibrary && entry.kind !in listOf(EntryKind.RECIPE,EntryKind.TEMPLATE)
-internal fun volumeLabel(ml:Double?, settings:AppSettings):String = if(ml==null)"Unknown" else if(settings.volumeUnit=="ml") "${number(ml)} mL" else "${number(ml/29.5735295625)} US fl oz"
+internal fun volumeLabel(ml:Double?, settings:AppSettings):String = if(ml==null)"Unknown" else if(settings.volumeUnit.equals("ml",true)) "${number(ml)} mL" else "${number(ml/29.5735295625)} US fl oz"
 internal fun weightLabel(kg:Double?, settings:AppSettings):String = if(kg==null)"Unknown" else "${number(if(settings.weightUnit=="lb")kg/0.45359237 else kg)} ${settings.weightUnit}"
 internal fun distanceLabel(m:Double?, settings:AppSettings):String = if(m==null)"" else "${number(if(settings.distanceUnit=="mi")m/1609.344 else m/1000)} ${settings.distanceUnit}"
 

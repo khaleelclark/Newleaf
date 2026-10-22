@@ -74,7 +74,7 @@ internal fun QuickScanSheet(
                     CircularProgressIndicator()
                     Caption("Checking the barcode. Nothing has been saved yet.")
                 } else {
-                    flow.message?.let { Text(it,color=MaterialTheme.colorScheme.error) }
+                    flow.message?.let { ErrorMessage(it) }
                     Field("Barcode number",flow.code,flow::edit,numeric=true)
                     if(flow.code.isNotBlank())Action("Find product",Modifier.fillMaxWidth(),primary=true){find()}
                     Action("Scan again",Modifier.fillMaxWidth(),enabled=!busy){scan()}

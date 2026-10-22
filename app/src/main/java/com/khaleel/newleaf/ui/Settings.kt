@@ -40,7 +40,7 @@ internal fun WelcomeSheet(settings:AppSettings,onContinue:(AppSettings)->Unit) {
 
 @Composable
 private fun UnitPreferences(settings:AppSettings,onChange:(AppSettings)->Unit) {
-    Caption("Drink volume");Choices(listOf("US fl oz","mL"),if(settings.volumeUnit=="ml")"mL" else "US fl oz"){onChange(settings.copy(volumeUnit=if(it=="mL")"ml" else "fl oz"))}
+    Caption("Drink volume");Choices(listOf("US fl oz","mL"),if(settings.volumeUnit.equals("ml",true))"mL" else "US fl oz"){onChange(settings.copy(volumeUnit=if(it=="mL")"ml" else "fl oz"))}
     Caption("Body weight");Choices(listOf("lb","kg"),settings.weightUnit){onChange(settings.copy(weightUnit=it))}
     Caption("Activity distance");Choices(listOf("mi","km"),settings.distanceUnit){onChange(settings.copy(distanceUnit=it))}
     Caption("Appearance");Choices(listOf("system","light","dark"),settings.theme){onChange(settings.copy(theme=it))}
@@ -65,7 +65,7 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
             Action("Saved foods & recipes",Modifier.fillMaxWidth(),onClick=onLibrary)
             Disclosure("Units & appearance"){UnitPreferences(local){next->if(next.volumeUnit!=local.volumeUnit && goal.toDoubleOrNull()!=null)goal=number(Units.convert(goal.toDouble(),local.volumeUnit,next.volumeUnit));local=next}}
             Disclosure("Goals & reminders") {
-            Panel{Section("Water goal", "Optional. Set a personal goal, or leave blank.");Field("Daily goal · ${if(local.volumeUnit=="ml")"mL" else "US fl oz"}",goal,{goal=it},numeric=true)}
+            Panel{Section("Water goal", "Optional. Set a personal goal, or leave blank.");Field("Daily goal · ${if(local.volumeUnit.equals("ml",true))"mL" else "US fl oz"}",goal,{goal=it},numeric=true)}
             Panel{
                 Section("Meal check-in reminders", "Optional, about one hour after a meal. Off by default.")
                 Row {Checkbox(local.remindersEnabled,{enabled->
@@ -98,7 +98,7 @@ internal fun SettingsSheet(settings:AppSettings,onClose:()->Unit,onSave:(AppSett
             }
             Panel{Section("Your record, in your hands");Action("Export JSON, CSV or Markdown",Modifier.fillMaxWidth(),onClick=onExport);Action("Create full backup",Modifier.fillMaxWidth(),onClick=onBackup);Action("Restore from file",Modifier.fillMaxWidth(),onClick=onRestore);Caption("Exports are readable wherever you save them. Uninstalling or clearing app data removes this phone's journal. Save a full backup first.")}
             Disclosure("About Newleaf"){Caption("Version ${com.khaleel.newleaf.BuildConfig.VERSION_NAME} · A private everyday journal.");Action("Third-party notices & licenses",Modifier.fillMaxWidth()){showingLicenses=true}}
-            error?.let{Caption(it)}
+            error?.let{ErrorMessage(it)}
             Action("Save preferences",Modifier.fillMaxWidth(),primary=true){runCatching{val n=goal.takeIf{it.isNotBlank()}?.toDouble();require(n==null || n.isFinite() && n>0){"Water goal must be positive or blank"};onSave(local.copy(waterGoalMl=n?.let{Units.volumeMl(it,local.volumeUnit)}))}.onFailure{error=it.message}}
             Spacer(Modifier.height(24.dp))
         }

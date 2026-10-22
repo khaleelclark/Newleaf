@@ -1,6 +1,7 @@
 package com.khaleel.newleaf.data
 
 import com.google.gson.JsonParser
+import com.khaleel.newleaf.BuildConfig
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -39,6 +40,7 @@ class ExportsTest {
         files.values.forEach { bytes -> val text = String(bytes); assertFalse(text.contains("NEVER-EXPORT-THIS-TOKEN")); assertFalse(text.contains("DO-NOT-EXPORT-DRAFT")) }
         assertTrue(String(files.getValue("food_entries.csv")).contains("'=SUM"))
         assertTrue(String(files.getValue("journal.json")).contains("=SUM"))
+        assertEquals(BuildConfig.VERSION_NAME,JsonParser.parseString(String(files.getValue("journal.json"))).asJsonObject["manifest"].asJsonObject["app_version"].asString)
     }
     @Test fun jsonTablesArePresentEvenWhenEmptyAndNutrientsHaveUnitsStatuses() {
         val root = JsonParser.parseString(JournalExports.json(journal())).asJsonObject

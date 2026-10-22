@@ -6,11 +6,11 @@ Newleaf is a personal Android journal for food, drinks, movement, body weight an
 
 ## Current release
 
-**0.1.4 · version code 6 · package `com.khaleel.newleaf`**. Android 10/API 29 or newer; compiled and targeted against API 36. The primary device is the Samsung Galaxy S25 Ultra. Distribution is a signed APK through Project files and this private repository; there is no Play Store listing.
+**0.1.5 · version code 7 · package `com.khaleel.newleaf`**. Android 10/API 29 or newer; compiled and targeted against API 36. The primary device is the Samsung Galaxy S25 Ultra. Distribution is a signed APK through Project files and this private repository; there is no Play Store listing.
 
-[Download Newleaf 0.1.4 APK](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.4.apk) (GitHub sign-in required). Install over your existing app without uninstalling. The APK is unchanged from the original 0.1.4 release; its checksum and public signing identity are recorded in `releases/CHECKSUMS.txt` and `releases/SIGNATURE.txt`.
+[Download Newleaf 0.1.5 APK](https://github.com/khaleelclark/Newleaf/raw/refs/heads/main/releases/Newleaf-0.1.5.apk) (GitHub sign-in required). Install over your existing app without uninstalling. The checksum and public signing identity are recorded in `releases/CHECKSUMS.txt` and `releases/SIGNATURE.txt`.
 
-Today opens food, drink, activity, steps and weight forms directly. Scan opens packaged-product review with a required category, visible populated nutrition and one Add to journal action. Reported whole-package measurements support fractions and percentages; missing nutrition stays unknown. Manual logging and exports work offline.
+Today opens food, drink, activity, steps and weight forms directly. Scan opens packaged-product review with a required category, visible populated nutrition and one Add to journal action. Reported whole-package measurements support fractions and percentages; missing nutrition stays unknown. Manual logging and exports work offline. The 0.1.5 update explains the required scan category and exposes section headings, expansion states and form-error announcements to accessibility services.
 
 ## Documentation
 
@@ -20,6 +20,8 @@ Today opens food, drink, activity, steps and weight forms directly. Scan opens p
 | [Changelog](releases/CHANGELOG.md) | Features by release |
 | [Release validation](releases/VALIDATION.md) | Recorded build/test evidence and remaining phone checks |
 | [Product behavior](docs/PRODUCT_SPEC.md) | Current scope, defaults and deferred capabilities |
+| [Repository review](docs/REPOSITORY_REVIEW.md) | Fixed issues, remaining findings and verification limits |
+| [Coding and UX principles](docs/UX_PRINCIPLES.md) | Ponytail guidance and the owner-supplied UX reference applied to Newleaf |
 | [Experience](docs/EXPERIENCE.md) | Screens, interaction, visual system and accessibility targets |
 | [Data and exports](docs/DATA_AND_EXPORTS.md) | Implemented schema, units, calculations, file formats and restore |
 | [Nutrition sources](docs/NUTRITION_INTEGRATIONS.md) | Free USDA/OFF access, review, privacy and source policy |
@@ -38,7 +40,7 @@ The journal stays on the phone. Explicit online lookup sends food queries or a b
 
 ## Evidence and limits
 
-The 0.1.4 release record reports **126 JVM tests and 38 signed-release emulator tests passed**. Those are recorded release results, not a new run during documentation maintenance. Physical S25 Ultra camera/network/keyboard/TalkBack acceptance and target-phone performance remain open. The optional gateway has separate historical test evidence and no production deployment. See the validation record for exact boundaries.
+Current build/test evidence and its scope are recorded in the [0.1.5 validation record](releases/VALIDATION.md). Physical S25 Ultra camera/network/keyboard/TalkBack acceptance and target-phone performance remain open. The optional gateway has separate local test evidence and no production deployment. See the validation record for exact boundaries.
 
 ## Repository and maintenance
 
